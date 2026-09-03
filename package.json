@@ -1,0 +1,19 @@
+{
+  "name": "organizador",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Organizador diario de trabajo y vida personal con sincronizacion bidireccional con Google Calendar",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

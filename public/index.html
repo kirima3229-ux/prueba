@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1115" />
+  <title>Organizador · trabajo y vida personal</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗓️</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="app" class="app" hidden>
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Organizador</span>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button class="nav-item is-active" data-view="today"><span class="nav-icon">☀</span> Hoy</button>
+        <button class="nav-item" data-view="week"><span class="nav-icon">▦</span> Semana</button>
+        <button class="nav-item" data-view="tasks"><span class="nav-icon">✓</span> Tareas</button>
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span> Ajustes</button>
+      </nav>
+
+      <div class="area-filter">
+        <div class="area-filter-label">Área</div>
+        <div class="segmented" id="area-filter">
+          <button class="is-active" data-area="all">Todo</button>
+          <button data-area="work">Trabajo</button>
+          <button data-area="personal">Personal</button>
+        </div>
+      </div>
+
+      <div class="sidebar-foot">
+        <div class="sync-status" id="sync-status">
+          <span class="sync-dot" id="sync-dot"></span>
+          <span id="sync-text">Sin conectar</span>
+        </div>
+        <button class="btn btn-ghost btn-block" id="sync-now">Sincronizar ahora</button>
+        <div class="user-chip" id="user-chip" hidden>
+          <img id="user-avatar" alt="" />
+          <div class="user-meta">
+            <div id="user-name"></div>
+            <div id="user-email" class="muted"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="view-title">Hoy</h1>
+          <div id="view-subtitle" class="muted"></div>
+        </div>
+        <div class="topbar-right">
+          <div class="date-nav" id="date-nav">
+            <button id="date-prev" aria-label="Anterior">‹</button>
+            <button id="date-today">Hoy</button>
+            <button id="date-next" aria-label="Siguiente">›</button>
+          </div>
+          <button class="btn btn-primary" id="new-task">+ Nueva tarea</button>
+        </div>
+      </header>
+
+      <div class="view-host" id="view-host"></div>
+    </main>
+  </div>
+
+  <!-- Pantalla de entrada ------------------------------------------------->
+  <div id="welcome" class="welcome" hidden>
+    <div class="welcome-card">
+      <div class="welcome-mark" aria-hidden="true"></div>
+      <h1>Organizador</h1>
+      <p>Tu día a día de trabajo y vida personal en un solo sitio, sincronizado en ambos sentidos con Google Calendar.</p>
+
+      <ul class="welcome-points">
+        <li><b>Hoy</b> — agenda unificada: reuniones reales y bloques de tareas.</li>
+        <li><b>Trabajo / Personal</b> — dos áreas separadas, un solo día.</li>
+        <li><b>Sync bidireccional</b> — mueves un bloque en Google y la tarea se mueve aquí.</li>
+      </ul>
+
+      <div id="welcome-actions"></div>
+      <p class="welcome-error" id="welcome-error" hidden></p>
+    </div>
+  </div>
+
+  <!-- Panel de edición de tarea -------------------------------------------->
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <section class="drawer" id="drawer" hidden aria-label="Editar tarea">
+    <header class="drawer-head">
+      <h2 id="drawer-title">Nueva tarea</h2>
+      <button class="icon-btn" id="drawer-close" aria-label="Cerrar">✕</button>
+    </header>
+
+    <form class="drawer-body" id="task-form">
+      <label class="field">
+        <span>Título</span>
+        <input name="title" id="f-title" required maxlength="300" placeholder="Ej. Preparar informe trimestral" autocomplete="off" />
+      </label>
+
+      <div class="field">
+        <span>Área</span>
+        <div class="segmented segmented-lg" id="f-area">
+          <button type="button" class="is-active" data-value="work">Trabajo</button>
+          <button type="button" data-value="personal">Personal</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span>Prioridad</span>
+        <div class="segmented" id="f-priority">
+          <button type="button" data-value="low">Baja</button>
+          <button type="button" class="is-active" data-value="normal">Normal</button>
+          <button type="button" data-value="high">Alta</button>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <label class="field">
+          <span>Fecha límite</span>
+          <input type="date" name="dueDate" id="f-due" />
+        </label>
+        <label class="field">
+          <span>Duración (min)</span>
+          <input type="number" name="durationMin" id="f-duration" min="5" max="1440" step="5" value="30" />
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Agendar en el calendario</span>
+        <input type="datetime-local" name="scheduledAt" id="f-scheduled" />
+        <small class="hint" id="f-scheduled-hint">Al poner fecha y hora se crea un evento en Google Calendar.</small>
+      </label>
+
+      <label class="field">
+        <span>Etiquetas <small class="muted">(separadas por comas)</small></span>
+        <input name="tags" id="f-tags" placeholder="cliente, urgente" autocomplete="off" />
+      </label>
+
+      <label class="field">
+        <span>Notas</span>
+        <textarea name="notes" id="f-notes" rows="4" placeholder="Contexto, enlaces, pasos…"></textarea>
+      </label>
+
+      <div class="drawer-actions">
+        <button type="submit" class="btn btn-primary" id="f-submit">Guardar</button>
+        <button type="button" class="btn btn-ghost" id="f-cancel">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="f-delete" hidden>Eliminar</button>
+      </div>
+      <a class="gcal-link" id="f-gcal" href="#" target="_blank" rel="noopener" hidden>Ver en Google Calendar ↗</a>
+    </form>
+  </section>
+
+  <div class="toasts" id="toasts"></div>
+
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>
