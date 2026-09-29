@@ -160,6 +160,7 @@ class ResultadoNomina(models.Model):
     numero_empleado = models.CharField(max_length=20)
     ssn_ultimos4 = models.CharField(max_length=4)
     departamento = models.CharField(max_length=100, blank=True)
+    clasificacion_cfse = models.CharField("clasificación CFSE", max_length=20, blank=True)
     regimen = models.CharField(max_length=10)
     tarifa = models.DecimalField(max_digits=12, decimal_places=4)
     tipo_pago = models.CharField(max_length=10)

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block titulo %}Planillas{% endblock %}
+{% block contenido %}
+<div class="encabezado"><h1>Planillas de gobierno — {{ compania_activa }}</h1></div>
+<form class="filtros" method="get">
+  <div class="campo"><label for="anio">Año</label><input class="buscar" id="anio" name="anio" type="number" min="2000" max="2100" value="{{ anio }}"></div>
+  <button class="boton secundario" type="submit">Ver</button>
+</form>
+<p class="texto-suave">Hojas de trabajo calculadas de las nóminas cerradas, con la fecha de vencimiento de cada planilla. Al radicar o pagar, registre el número de confirmación en la planilla. Fechas y líneas POR VERIFICAR con las agencias.</p>
+<div class="tabla-contenedor"><table>
+  <thead><tr><th>Planilla</th><th>Agencia</th><th>Período</th><th>Vence</th><th>Estado</th></tr></thead>
+  <tbody>{% for f in filas %}<tr>
+    <td><a href="{% url 'planillas:planilla' f.tipo.codigo %}?anio={{ f.anio }}{% if f.trimestre %}&trimestre={{ f.trimestre }}{% endif %}">{{ f.tipo.nombre }}</a></td>
+    <td>{{ f.tipo.agencia }}</td><td>{{ f.etiqueta }}</td><td>{{ f.vence|date:"m/d/Y"|default:"Según la póliza" }}</td>
+    <td>{% if f.radicada %}<span class="etiqueta verde">Radicada</span>{% elif not f.con_datos %}<span class="etiqueta gris">Sin nóminas</span>{% elif f.vencida %}<span class="etiqueta roja">Vencida sin registrar</span>{% else %}<span class="etiqueta gris">Pendiente</span>{% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

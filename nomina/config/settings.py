@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "apps.calculo",
     "apps.licencias",
     "apps.nomina",
+    "apps.planillas",
 ]
 
 MIDDLEWARE = [

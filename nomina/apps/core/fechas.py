@@ -77,6 +77,10 @@ def rango_trimestre(anio: int, trimestre: int) -> tuple[date, date]:
     return date(anio, mes_fin - 2, 1), date(anio, mes_fin, calendar.monthrange(anio, mes_fin)[1])
 
 
+def rango_mes(anio: int, mes: int) -> tuple[date, date]:
+    return date(anio, mes, 1), date(anio, mes, calendar.monthrange(anio, mes)[1])
+
+
 def vence_trimestral(anio: int, trimestre: int) -> date:
     _, fin = rango_trimestre(anio, trimestre)
     mes = fin.month + 1 if fin.month < 12 else 1

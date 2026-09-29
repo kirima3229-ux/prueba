@@ -304,6 +304,34 @@ imprime el nombre de la compañía. El sistema valida la imagen, la reduce si es
 generada por él (sin metadatos), en la base de datos, así que entra en los respaldos. Se puede cambiar o quitar en
 cualquier momento; queda en la bitácora.
 
+## Fase 4 — planillas de gobierno
+
+Menú **Planillas**: calendario del año con cada planilla, su vencimiento y su estado (radicada, pendiente, vencida
+sin registrar o sin nóminas). Cada planilla es una hoja de trabajo calculada de las nóminas cerradas (por fecha de
+pago; los reversos restan), en pantalla, PDF y Excel:
+
+| Planilla | Agencia | Contenido |
+|---|---|---|
+| 499 R-1B | Hacienda | Por mes: salarios pagados, sujeto a retención, contribución retenida |
+| 941 | IRS | Líneas 1–12 y obligación mensual (línea 16) o por día (Anejo B si deposita bisemanal) |
+| Desempleo e incapacidad | DTRH | Por empleado: salarios, tributable de desempleo y SINOT (con topes), aportaciones; empleados al día 12 |
+| Seguro Choferil | DTRH | Por empleado: semanas y aportaciones |
+| 499R-2/W-2PR | Hacienda / SSA | Por empleado: sueldos, comisiones, propinas, reembolsos, exentos, aportaciones, retenido, SS y Medicare |
+| 499R-3 | Hacienda | Reconciliación: suma de los trimestres contra los W-2PR (avisa si no cuadran) |
+| 940 | IRS | Líneas 3–8 y obligación por trimestre |
+| 480.6SP | Hacienda | Por proveedor de servicios: pagado y retenido en el año |
+| CFSE | CFSE | Nómina y prima por clasificación en el año de la póliza (julio–junio) |
+
+- En pantalla y en PDF el SSN sale enmascarado. El **Excel para la agencia** (W-2PR, DTRH, Choferil, 480.6SP) trae
+  el SSN o la identificación completa; sólo lo descargan administradores y preparadores y queda en la bitácora.
+- **Registro de radicación**: en cada planilla se anota la fecha, el número de confirmación y el monto pagado.
+- La clasificación CFSE se guarda con cada resultado de nómina (la que tenía el empleado al pagarse).
+- Líneas, casillas y fechas **POR VERIFICAR** con los formularios del año.
+
+**Pendiente**: los archivos electrónicos con formato oficial — EFW2PR del W-2PR (Publicación 25-01 de Hacienda), el
+archivo de salarios del DTRH y el trimestral de servicios prestados — se generan cuando se incorporen las
+especificaciones o las muestras.
+
 ## Estructura
 
 ```

@@ -26,6 +26,7 @@ class Accion(models.TextChoices):
     COMPANIA_CREADA = "compania_creada", "Compañía creada"
     COMPANIA_MODIFICADA = "compania_modificada", "Compañía modificada"
     LOGO_COMPANIA = "logo_compania", "Logo de la compañía modificado"
+    PLANILLA_RADICADA = "planilla_radicada", "Radicación de planilla registrada"
     TASAS_MODIFICADAS = "tasas_modificadas", "Tasas modificadas"
     CATALOGO_MODIFICADO = "catalogo_modificado", "Catálogo modificado"
     EMPLEADO_CREADO = "empleado_creado", "Empleado creado"

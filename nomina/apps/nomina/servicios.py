@@ -203,7 +203,8 @@ def calcular_periodo(periodo, usuario):
     errores = []
     with transaction.atomic():
         periodo.resultados.all().delete()
-        entradas = periodo.entradas.filter(incluir=True).select_related("empleado", "empleado__departamento")
+        entradas = periodo.entradas.filter(incluir=True).select_related(
+            "empleado", "empleado__departamento", "empleado__clasificacion_cfse")
         tasas_usadas = None
         for entrada in entradas.prefetch_related("ingresos__concepto", "deducciones__concepto"):
             emp = entrada.empleado
@@ -221,6 +222,7 @@ def calcular_periodo(periodo, usuario):
                 periodo=periodo, empleado=emp, empleado_nombre=emp.nombre_completo,
                 numero_empleado=emp.numero_empleado, ssn_ultimos4=emp.ssn_ultimos4,
                 departamento=str(emp.departamento or ""), regimen=emp.regimen_efectivo, tarifa=emp.tarifa,
+                clasificacion_cfse=emp.clasificacion_cfse.codigo if emp.clasificacion_cfse_id else "",
                 tipo_pago=emp.tipo_pago, horas_trabajadas=horas_trabajadas(entrada),
                 bruto=r.bruto, total_retenciones=r.total_retenciones, total_deducciones=r.total_deducciones,
                 neto=r.neto, total_patronal=r.total_patronal,
@@ -322,6 +324,7 @@ def reversar_periodo(periodo, motivo, usuario):
             nuevo = ResultadoNomina.objects.create(
                 periodo=reverso, empleado=r.empleado, empleado_nombre=r.empleado_nombre,
                 numero_empleado=r.numero_empleado, ssn_ultimos4=r.ssn_ultimos4, departamento=r.departamento,
+                clasificacion_cfse=r.clasificacion_cfse,
                 regimen=r.regimen, tarifa=r.tarifa, tipo_pago=r.tipo_pago,
                 alertas=[f"Reverso: {motivo}"], **{c: -getattr(r, c) for c in campos},
             )

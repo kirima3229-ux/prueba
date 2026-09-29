@@ -26,7 +26,7 @@ def _todas_las_rutas(resolver=None, prefijo=""):
 def _url_de_prueba(nombre):
     for kwargs in ({}, {"pk": 1}, {"anio": 2026}, {"pk": 1, "tasas_pk": 1}, {"pk": 1, "catalogo": "departamentos"},
                    {"pk": 1, "catalogo": "departamentos", "item_pk": 1}, {"pk": 1, "cls_pk": 1},
-                   {"pk": 1, "cls_pk": 1, "tasa_pk": 1}, {"pk": 1, "entrada_pk": 1}):
+                   {"pk": 1, "cls_pk": 1, "tasa_pk": 1}, {"pk": 1, "entrada_pk": 1}, {"codigo": "941"}):
         try:
             return reverse(nombre, kwargs=kwargs)
         except Exception:

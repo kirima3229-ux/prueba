@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}{{ tipo.nombre }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'planillas:inicio' %}?anio={{ anio }}">Planillas</a></div>
+<div class="encabezado"><h1>{{ tipo.nombre }}</h1>
+  <div class="acciones">
+    <a class="boton secundario" href="?anio={{ anio }}{% if trimestre %}&trimestre={{ trimestre }}{% endif %}&formato=pdf" target="_blank">PDF</a>
+    <a class="boton secundario" href="?anio={{ anio }}{% if trimestre %}&trimestre={{ trimestre }}{% endif %}&formato=xlsx">Excel</a>
+    {% if tipo.con_identificacion and user.puede_editar %}<a class="boton" href="?anio={{ anio }}{% if trimestre %}&trimestre={{ trimestre }}{% endif %}&formato=agencia" title="Con el SSN o la identificación completa, para preparar la radicación">Excel para la agencia</a>{% endif %}
+  </div>
+</div>
+<form class="filtros" method="get">
+  <div class="campo"><label for="anio">{% if tipo.periodicidad == "poliza" %}Póliza que empieza en julio de{% else %}Año{% endif %}</label><input class="buscar" id="anio" name="anio" type="number" min="2000" max="2100" value="{{ anio }}"></div>
+  {% if trimestre %}<div class="campo"><label for="trimestre">Trimestre</label><select id="trimestre" name="trimestre">{% for t in "1234" %}<option value="{{ t }}" {% if t|add:0 == trimestre %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>{% endif %}
+  <button class="boton secundario" type="submit">Ver</button>
+</form>
+<p>{{ tipo.agencia }} · {{ etiqueta }} · {% if vence %}vence el <strong>{{ vence|date:"m/d/Y" }}</strong>{% else %}según la póliza{% endif %}</p>
+<div class="tabla-contenedor">
+<table class="tabla-reporte">
+  <thead><tr>{% for c, t in columnas %}<th class="{% if t != 'texto' and t != 'corto' %}num{% endif %}">{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for fila in filas %}<tr>{% for valor, t in fila %}<td class="{% if t != 'texto' and t != 'corto' %}num{% endif %}">{{ valor }}</td>{% endfor %}</tr>
+  {% empty %}<tr><td colspan="{{ columnas|length }}" class="vacio">No hay nóminas cerradas en este período.</td></tr>{% endfor %}
+  </tbody>
+  {% if totales %}<tfoot><tr>{% for valor, t in totales %}<th class="{% if t != 'texto' and t != 'corto' %}num{% endif %}">{{ valor }}</th>{% endfor %}</tr></tfoot>{% endif %}
+</table>
+</div>
+{% for n in notas %}<p class="{% if '⚠' in n %}mensaje warning{% else %}texto-suave{% endif %}">{{ n }}</p>{% endfor %}
+
+<div class="tarjeta">
+  <h2>Radicación</h2>
+  {% for r in radicaciones %}<p><span class="etiqueta verde">Radicada</span> {{ r.fecha|date:"m/d/Y" }} · confirmación <span class="mono">{{ r.confirmacion }}</span>{% if r.monto is not None %} · ${{ r.monto|floatformat:2|intcomma }}{% endif %} · {{ r.registrado_por }}{% if r.notas %} · {{ r.notas }}{% endif %}</p>
+  {% empty %}<p class="texto-suave">No se ha registrado la radicación de este período.</p>{% endfor %}
+  {% if user.puede_editar %}
+  <form method="post" novalidate>{% csrf_token %}
+    <input type="hidden" name="anio" value="{{ anio }}">{% if trimestre %}<input type="hidden" name="trimestre" value="{{ trimestre }}">{% endif %}
+    {% include "_form.html" %}
+    <button class="boton secundario" type="submit">Registrar radicación</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

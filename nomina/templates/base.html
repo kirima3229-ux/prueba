@@ -7,6 +7,7 @@
   <nav class="menu">
     <a href="{% url 'inicio' %}" class="{% if request.resolver_match.url_name == 'inicio' %}activo{% endif %}">Inicio</a>
     <a href="{% url 'nomina:lista' %}" class="{% if ruta == 'nomina' %}activo{% endif %}">Nómina</a>
+    <a href="{% url 'planillas:inicio' %}" class="{% if ruta == 'planillas' %}activo{% endif %}" title="Planillas de Hacienda, IRS, DTRH y CFSE">Planillas</a>
     <a href="{% url 'empleados:lista' %}" class="{% if ruta == 'empleados' %}activo{% endif %}">Empleados</a>
     <a href="{% url 'licencias:balances' %}" class="{% if ruta == 'licencias' %}activo{% endif %}" title="Vacaciones, enfermedad y bono de Navidad">Licencias</a>
     <a href="{% url 'servicios:lista' %}" class="{% if ruta == 'servicios' %}activo{% endif %}" title="Servicios prestados">Servicios</a>

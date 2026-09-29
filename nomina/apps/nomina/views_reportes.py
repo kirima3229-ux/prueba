@@ -1,17 +1,15 @@
 """Pantalla de reportes de nómina (pantalla, Excel y PDF)."""
 
 import calendar
-from dataclasses import dataclass, field
 from datetime import date
 
-from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
 from apps.auditoria.servicios import Accion, registrar
-from apps.core import fechas, hojas
-from apps.core.pdf import tabla_pdf
+from apps.core import fechas
 from apps.core.permisos import requiere_compania
+from apps.core.tablas import Tabla, exportar
 
 from . import reportes
 
@@ -23,14 +21,6 @@ REPORTES = [
     ("costo", "Costo patronal"),
     ("impuestos", "Impuestos a pagar"),
 ]
-
-
-@dataclass
-class Tabla:
-    columnas: list  # [(título, tipo)] tipo: texto | dinero | pct | horas | fecha
-    filas: list
-    totales: list | None = None
-    notas: list = field(default_factory=list)
 
 
 def _entero(texto, defecto, minimo, maximo):
@@ -154,20 +144,6 @@ def _tabla_impuestos(compania, desde, hasta):
     )
 
 
-def _formato_celda(valor, tipo):
-    if valor is None:
-        return ""
-    if tipo == "pct":
-        return f"{valor:,.2f}%"
-    if tipo == "fecha":
-        return f"{valor:%m/%d/%Y}"
-    if tipo == "dinero":
-        return f"-${-valor:,.2f}" if valor < 0 else f"${valor:,.2f}"
-    if tipo == "horas":
-        return f"{valor:,.2f}"
-    return str(valor)
-
-
 @requiere_compania
 def reportes_vista(request):
     reporte = request.GET.get("reporte") if request.GET.get("reporte") in dict(REPORTES) else "resumen"
@@ -187,31 +163,10 @@ def reportes_vista(request):
     nombre_archivo = f"{reporte}_{r['desde']:%Y%m%d}_{r['hasta']:%Y%m%d}"
     if formato in ("xlsx", "pdf"):
         registrar(request, Accion.ARCHIVO_GENERADO, descripcion=f"Reporte {titulo} ({r['etiqueta']}) {formato.upper()}")
-    if formato == "xlsx":
-        # Cada columna «%» lleva el nombre de la columna de dinero que tiene al lado.
-        titulos = [c for c, _ in tabla.columnas]
-        encabezados = [f"% {titulos[i - 1]}" if t == "%" else t for i, t in enumerate(titulos)]
-        contenido = hojas.libro_xlsx(titulo[:31], encabezados, tabla.filas, tabla.totales)
-        respuesta = HttpResponse(contenido,
-                                 content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        respuesta["Content-Disposition"] = f'attachment; filename="{nombre_archivo}.xlsx"'
-        return respuesta
-    if formato == "pdf":
-        def fmt(fila):
-            return [_formato_celda(v, t) for v, (_, t) in zip(fila, tabla.columnas)]
-
-        contenido = tabla_pdf(
-            titulo=titulo, subtitulo=f"Nóminas pagadas del {r['desde']:%m/%d/%Y} al {r['hasta']:%m/%d/%Y}",
-            compania=compania, encabezados=[c for c, _ in tabla.columnas], filas=[fmt(f) for f in tabla.filas],
-            totales=fmt(tabla.totales) if tabla.totales else None, notas=tabla.notas,
-            tipos=[t for _, t in tabla.columnas],
-        )
-        respuesta = HttpResponse(contenido, content_type="application/pdf")
-        respuesta["Content-Disposition"] = f'inline; filename="{nombre_archivo}.pdf"'
-        return respuesta
-    filas = [[(_formato_celda(v, t), t) for v, (_, t) in zip(fila, tabla.columnas)] for fila in tabla.filas]
-    totales = ([(_formato_celda(v, t), t) for v, (_, t) in zip(tabla.totales, tabla.columnas)]
-               if tabla.totales else None)
+    if formato in ("xlsx", "pdf"):
+        return exportar(tabla, formato, titulo=titulo, compania=compania, nombre_archivo=nombre_archivo,
+                        subtitulo=f"Nóminas pagadas del {r['desde']:%m/%d/%Y} al {r['hasta']:%m/%d/%Y}")
+    filas, totales = tabla.para_pantalla()
     consulta = request.GET.copy()
     consulta.pop("formato", None)
     return render(request, "nomina/reportes.html", {
