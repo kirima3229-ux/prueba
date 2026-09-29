@@ -31,15 +31,17 @@
 <div class="tarjeta">
   <h2>Accesos rápidos</h2>
   <div class="acciones">
-    <a class="boton secundario" href="{% url 'empleados:lista' %}">Ver empleados</a>
+    {% if user.puede_editar %}<a class="boton" href="{% url 'nomina:nuevo' %}">Nueva nómina</a>{% endif %}
+    <a class="boton secundario" href="{% url 'nomina:lista' %}">Nóminas</a>
+    <a class="boton secundario" href="{% url 'nomina:reportes' %}?reporte=impuestos">Impuestos a pagar</a>
+    <a class="boton secundario" href="{% url 'planillas:inicio' %}">Planillas</a>
+    <a class="boton secundario" href="{% url 'empleados:lista' %}">Empleados</a>
     {% if user.puede_editar %}
     <a class="boton secundario" href="{% url 'empleados:nuevo' %}">Nuevo empleado</a>
-    <a class="boton secundario" href="{% url 'empleados:importar' %}">Importar empleados</a>
     <a class="boton secundario" href="{% url 'servicios:nuevo' %}">Nuevo proveedor de servicios</a>
     {% endif %}
     <a class="boton secundario" href="{% url 'companias:detalle' compania_activa.pk %}">Datos de la compañía</a>
   </div>
-  <p class="texto-suave">La nómina, talonarios y reportes se añaden en las próximas fases.</p>
 </div>
 {% else %}
 <div class="tarjeta">
