@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Cuentas contables{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a></div>
+<div class="encabezado"><h1>Cuentas contables (QuickBooks) — {{ compania_activa }}</h1></div>
+<div class="tarjeta">
+  <p>Escriba el nombre de la cuenta <strong>tal como está en el catálogo de QuickBooks Online</strong> (las subcuentas llevan dos puntos, por ejemplo <span class="mono">Gastos de nómina:Salarios</span>). Deje en blanco para usar la cuenta que aparece en gris: la del grupo (<span class="mono">*</span>) o la sugerida.</p>
+</div>
+<form method="post" novalidate>{% csrf_token %}
+<div class="tabla-contenedor"><table>
+  <thead><tr><th>Concepto</th><th class="mono">Clave</th><th>Cuenta en QuickBooks</th></tr></thead>
+  <tbody>{% for f in filas %}<tr>
+    <td>{{ f.descripcion }}</td><td class="mono"><small>{{ f.clave }}</small></td>
+    <td><label class="oculto" for="c_{{ f.clave }}">Cuenta para {{ f.descripcion }}</label>
+      <input class="buscar" id="c_{{ f.clave }}" name="c_{{ f.clave }}" value="{{ f.valor }}" placeholder="{{ f.sugerida }}" maxlength="150"></td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+<div class="acciones"><button class="boton" type="submit">Guardar</button></div>
+</form>
+{% endblock %}

@@ -281,6 +281,14 @@ efectiva debe ser día laborable. Es el único lugar, además de la base de dato
 cuenta completos. Cada archivo queda en el historial (con su huella SHA-256) y en la bitácora, y se avisa si ya se
 generó uno para esa nómina. Antes del primer envío real, pida al banco que valide un archivo de prueba.
 
+### Asiento para QuickBooks Online
+
+En una nómina cerrada, *Asiento QuickBooks* muestra y descarga (CSV o Excel) el asiento de diario: débito a
+salarios y a aportaciones patronales; crédito a cada retención y aportación por pagar, a las deducciones y al neto
+(«Nómina por pagar»). Siempre cuadra; un reverso produce el asiento inverso. Un administrador asigna en
+*Cuentas contables* el nombre de la cuenta de QuickBooks para cada concepto (o para el grupo); lo que no se asigna
+usa la cuenta sugerida. En QuickBooks: *Configuración → Importar datos → Asientos de diario*.
+
 ## Estructura
 
 ```

@@ -20,10 +20,12 @@ from apps.empleados.forms import FechaInput
 from apps.empleados.models import Empleado
 from apps.parametros.models import ConceptoDeduccion, ConceptoIngreso
 
-from . import cheques, deposito_directo, pdf_cheques, servicios, talonario
+from . import cheques, contabilidad, deposito_directo, pdf_cheques, servicios, talonario
 from .models import (
     Cheque,
     ConfiguracionNACHA,
+    CuentaContable,
+    LineaResultado,
     DeduccionRecurrente,
     EntradaDeduccion,
     EntradaIngreso,
@@ -651,4 +653,73 @@ def deposito_directo_vista(request, pk):
         "total": sum((r.neto for r in resultados), Decimal("0")),
         "archivos": periodo.archivos_bancarios.select_related("generado_por"),
         "puede": periodo.estado == "cerrada" and periodo.tipo != "reverso" and config is not None,
+    })
+
+
+# --- Contabilidad (QuickBooks Online) ---------------------------------------------------
+
+
+@requiere_compania
+@requiere_admin
+def cuentas_contables(request):
+    asignadas = contabilidad.mapa(request.compania)
+    claves = contabilidad.claves()
+    if request.method == "POST":
+        antes = dict(asignadas)
+        with transaction.atomic():
+            for clave in claves:
+                valor = request.POST.get(f"c_{clave}", "").strip()[:150]
+                if valor:
+                    CuentaContable.objects.update_or_create(compania=request.compania, clave=clave,
+                                                            defaults={"cuenta": valor})
+                else:
+                    CuentaContable.objects.filter(compania=request.compania, clave=clave).delete()
+        despues = contabilidad.mapa(request.compania)
+        cambios = {k: {"antes": antes.get(k, ""), "despues": despues.get(k, "")}
+                   for k in set(antes) | set(despues) if antes.get(k) != despues.get(k)}
+        if cambios:
+            registrar(request, Accion.CUENTAS_CONTABLES, objeto=request.compania, cambios=cambios)
+        messages.success(request, "Cuentas guardadas.")
+        return redirect("nomina:cuentas_contables")
+    filas = [
+        {"clave": clave, "descripcion": descripcion, "valor": asignadas.get(clave, ""),
+         "sugerida": contabilidad.cuenta_para({k: v for k, v in asignadas.items() if k != clave}, clave)}
+        for clave, descripcion in claves.items()
+    ]
+    return render(request, "nomina/cuentas_contables.html", {"filas": filas})
+
+
+@requiere_compania
+def asiento_contable(request, pk):
+    periodo = _periodo(request, pk)
+    if not periodo.cerrado:
+        messages.error(request, "El asiento se genera de una nómina cerrada.")
+        return redirect("nomina:detalle", pk=periodo.pk)
+    lineas = contabilidad.asiento(LineaResultado.objects.filter(resultado__periodo=periodo),
+                                  contabilidad.mapa(request.compania))
+    numero = f"NOM-{periodo.fecha_pago:%Y%m%d}-{periodo.pk}"
+    memo = (f"{periodo.get_tipo_display()} {periodo.fecha_inicio:%m/%d/%Y}–{periodo.fecha_fin:%m/%d/%Y}"
+            + (f" · {periodo.descripcion}" if periodo.descripcion else ""))
+    formato = request.GET.get("formato")
+    if formato in ("csv", "xlsx"):
+        if not contabilidad.cuadra(lineas):  # no debería ocurrir
+            messages.error(request, "El asiento no cuadra; no se exportó.")
+            return redirect("nomina:asiento", pk=periodo.pk)
+        registrar(request, Accion.ARCHIVO_GENERADO, objeto=periodo, descripcion=f"Asiento QuickBooks ({formato})")
+        if formato == "csv":
+            respuesta = HttpResponse(contabilidad.csv_qbo(lineas, numero, periodo.fecha_pago, memo),
+                                     content_type="text/csv; charset=utf-8")
+        else:
+            respuesta = HttpResponse(
+                hojas.libro_xlsx("Asiento", ["Journal No", "Journal Date", "Account", "Debits", "Credits",
+                                             "Description", "Name", "Memo"],
+                                 [[numero, periodo.fecha_pago, l.cuenta, l.debito or None, l.credito or None,
+                                   l.descripcion, "", memo] for l in lineas]),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        respuesta["Content-Disposition"] = f'attachment; filename="asiento_{numero}.{formato}"'
+        return respuesta
+    return render(request, "nomina/asiento.html", {
+        "periodo": periodo, "lineas": lineas, "numero": numero, "memo": memo,
+        "debitos": sum((l.debito for l in lineas), Decimal("0")),
+        "creditos": sum((l.credito for l in lineas), Decimal("0")),
     })

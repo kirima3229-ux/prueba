@@ -336,6 +336,20 @@ class ConfiguracionNACHA(models.Model):
         return f"NACHA de {self.compania}"
 
 
+class CuentaContable(models.Model):
+    """Cuenta del catálogo (QuickBooks) a la que va cada concepto de la nómina en el asiento de diario."""
+
+    compania = models.ForeignKey(Compania, on_delete=models.CASCADE, related_name="cuentas_contables")
+    clave = models.CharField(max_length=60)
+    cuenta = models.CharField("cuenta en QuickBooks", max_length=150)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["compania", "clave"], name="cuenta_contable_unica")]
+
+    def __str__(self):
+        return f"{self.clave} → {self.cuenta}"
+
+
 class ArchivoBancario(models.Model):
     """Historial de archivos NACHA generados (para no enviar dos veces el mismo pago sin darse cuenta)."""
 

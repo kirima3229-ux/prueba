@@ -117,6 +117,7 @@ def _pantallas(d, admin):
         reverse("nomina:prueba_alineacion"),
     ], [
         reverse("nomina:configuracion_nacha"),
+        reverse("nomina:cuentas_contables"),
         reverse("parametros:inicio"),
         reverse("parametros:anio", args=[2026]),
         reverse("parametros:minimo_nuevo"),

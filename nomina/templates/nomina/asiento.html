@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Asiento {{ numero }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a> › <a href="{% url 'nomina:detalle' periodo.pk %}">{{ periodo.fecha_inicio|date:"m/d/Y" }} – {{ periodo.fecha_fin|date:"m/d/Y" }}</a></div>
+<div class="encabezado"><h1>Asiento de diario para QuickBooks</h1>
+  <div class="acciones">
+    <a class="boton" href="?formato=csv">Descargar CSV</a>
+    <a class="boton secundario" href="?formato=xlsx">Excel</a>
+    {% if user.es_admin %}<a class="boton secundario" href="{% url 'nomina:cuentas_contables' %}">Cuentas contables</a>{% endif %}
+  </div>
+</div>
+<p>Núm. <span class="mono">{{ numero }}</span> · fecha {{ periodo.fecha_pago|date:"m/d/Y" }} · {{ memo }}</p>
+<div class="tabla-contenedor"><table>
+  <thead><tr><th>Cuenta</th><th class="num">Débito</th><th class="num">Crédito</th><th>Detalle</th></tr></thead>
+  <tbody>{% for l in lineas %}<tr><td>{{ l.cuenta }}</td>
+    <td class="num">{% if l.debito %}${{ l.debito|floatformat:2|intcomma }}{% endif %}</td>
+    <td class="num">{% if l.credito %}${{ l.credito|floatformat:2|intcomma }}{% endif %}</td>
+    <td class="texto-suave"><small>{{ l.descripcion }}</small></td></tr>
+  {% empty %}<tr><td colspan="4" class="vacio">La nómina no tiene montos.</td></tr>{% endfor %}</tbody>
+  <tfoot><tr><th>Total</th><th class="num">${{ debitos|floatformat:2|intcomma }}</th><th class="num">${{ creditos|floatformat:2|intcomma }}</th><th>{% if debitos == creditos %}<span class="etiqueta verde">Cuadra</span>{% else %}<span class="etiqueta roja">No cuadra</span>{% endif %}</th></tr></tfoot>
+</table></div>
+<div class="tarjeta">
+  <h2>Cómo importarlo en QuickBooks Online</h2>
+  <ol>
+    <li>En QuickBooks: <em>Configuración (⚙) → Importar datos → Asientos de diario</em>.</li>
+    <li>Suba el CSV y asocie las columnas si se lo pide (Journal No, Journal Date, Account, Debits, Credits, Description, Memo).</li>
+    <li>Las cuentas deben existir con el mismo nombre en el catálogo; si no, créelas o cambie la asignación en <em>Cuentas contables</em>.</li>
+  </ol>
+  <p class="texto-suave">El neto va a «Nómina por pagar»; al pagar los cheques o el depósito directo se registra el pago contra esa cuenta en QuickBooks.</p>
+</div>
+{% endblock %}

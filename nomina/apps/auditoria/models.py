@@ -54,6 +54,7 @@ class Accion(models.TextChoices):
     CHEQUE_ANULADO = "cheque_anulado", "Cheque anulado"
     FORMATO_CHEQUE = "formato_cheque", "Formato de cheques modificado"
     CONFIG_NACHA = "config_nacha", "Datos bancarios de depósito directo modificados"
+    CUENTAS_CONTABLES = "cuentas_contables", "Cuentas contables modificadas"
     ACCESO_DENEGADO = "acceso_denegado", "Acceso denegado"
 
 
