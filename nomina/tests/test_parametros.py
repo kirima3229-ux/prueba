@@ -55,6 +55,23 @@ def _datos_anio(p):
         datos.update({f"reglas-{i}-id": r.pk, f"reglas-{i}-parametros": p.pk, f"reglas-{i}-regimen": r.regimen,
                       f"reglas-{i}-diario": r.diario, f"reglas-{i}-semanal": r.semanal,
                       f"reglas-{i}-septimo_dia": r.septimo_dia, f"reglas-{i}-periodo_alimentos": r.periodo_alimentos})
+    datos.update({"horas_por_dia": p.horas_por_dia, "limite_patrono_pequeno_licencias": p.limite_patrono_pequeno_licencias,
+                  "tope_vacaciones_meses": p.tope_vacaciones_meses, "tope_enfermedad_dias": p.tope_enfermedad_dias})
+    for prefijo, filas, campos in (
+        ("licencias", list(p.reglas_licencia.all()),
+         ("tipo", "regimen", "tamano", "anios_desde", "anios_hasta", "horas_minimas_mes", "dias_por_mes")),
+        ("bono", list(p.reglas_bono.all()),
+         ("regimen", "mes_inicio_periodo", "horas_minimas", "umbral_empleados", "porcentaje_grande", "tope_grande",
+          "porcentaje_pequeno", "tope_pequeno", "tope_salario")),
+    ):
+        datos.update({f"{prefijo}-TOTAL_FORMS": len(filas), f"{prefijo}-INITIAL_FORMS": len(filas),
+                      f"{prefijo}-MIN_NUM_FORMS": 0, f"{prefijo}-MAX_NUM_FORMS": 1000})
+        for i, fila in enumerate(filas):
+            datos[f"{prefijo}-{i}-id"] = fila.pk
+            datos[f"{prefijo}-{i}-parametros"] = p.pk
+            for campo in campos:
+                valor = getattr(fila, campo)
+                datos[f"{prefijo}-{i}-{campo}"] = "" if valor is None else valor
     return datos
 
 

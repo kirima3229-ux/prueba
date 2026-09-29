@@ -164,8 +164,33 @@ Cada línea trae su explicación.
 
 **Simulador** (menú *Simulador*): calcula un período para un empleado sin guardar nada, para comparar con casos reales.
 
-Pendiente en la Fase 2: acumulación de vacaciones y enfermedad, bono de Navidad, calculadora de mesada (Ley 80) y
-retención federal (W-4). Pendiente en la Fase 4: archivo trimestral de servicios prestados (en espera del formato).
+## Fase 2b — vacaciones, enfermedad y bono de Navidad
+
+Rige la **Ley 4-2017** (la Ley 41-2022 fue declarada nula por el Tribunal Federal el 3 de marzo de 2023). Las
+reglas están en *Configuración → año* y se cargaron POR VERIFICAR:
+
+| Régimen | Horas mín./mes | Vacaciones por mes | Enfermedad |
+|---|---|---|---|
+| Antes de Ley 4-2017 | 115 | 1.25 días (patrono de ≤12: ½ día) | 1 día |
+| Ley 4-2017, patrono de más de 12 | 130 | ½ (1er año), ¾ (1–5), 1 (5–15), 1.25 (15+) | 1 día |
+| Ley 4-2017, patrono de ≤12 | 130 | ½ día | 1 día |
+
+Cada tramo de antigüedad empieza "a partir del año más un día". Días de 8 horas; topes: 24 meses de
+vacaciones y 15 días de enfermedad (configurables).
+
+- **Licencias y bono → Acumular mes:** se entran las horas trabajadas del mes por empleado, se ve la vista previa
+  con la explicación de cada acumulación y se guarda. Un mes no se acumula dos veces.
+- **Balances** por empleado (en horas y días), exportables a Excel. Los movimientos (saldo inicial, acumulación, uso,
+  ajuste, liquidación) no se editan: las correcciones se hacen con un ajuste con motivo. Use *Saldo inicial* para
+  cargar los balances del sistema anterior.
+- **Bono de Navidad** (Ley 148): período del 1 de octubre al 30 de septiembre. Antes de Ley 4: 700 h; más de 15
+  empleados 6% sobre un salario máximo de $10,000 (hasta $600), si no 3% (hasta $300). Ley 4: 1,350 h; 2%, hasta
+  $600 con más de 20 empleados o $300 con 20 o menos. Se calcula por compañía, se guarda y se exporta a Excel.
+
+En la Fase 3 las horas y los salarios vendrán solos de la nómina procesada.
+
+Pendiente en la Fase 2: calculadora de mesada (Ley 80) y retención federal (W-4). Pendiente en la Fase 4: archivo
+trimestral de servicios prestados (en espera del formato).
 
 ## Estructura
 

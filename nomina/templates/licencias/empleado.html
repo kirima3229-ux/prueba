@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titulo %}Licencias — {{ empleado.nombre_completo }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'licencias:balances' %}">Vacaciones y enfermedad</a> › <a href="{% url 'empleados:detalle' empleado.pk %}">{{ empleado.nombre_completo }}</a></div>
+<div class="encabezado"><h1>Vacaciones y enfermedad — {{ empleado.nombre_completo }}</h1></div>
+<div class="rejilla">
+  <div class="tarjeta"><div class="cifra">{{ vacaciones|floatformat:2 }} h</div><div class="cifra-etiqueta">Vacaciones ({{ vacaciones_dias|floatformat:2 }} días)</div></div>
+  <div class="tarjeta"><div class="cifra">{{ enfermedad|floatformat:2 }} h</div><div class="cifra-etiqueta">Enfermedad ({{ enfermedad_dias|floatformat:2 }} días)</div></div>
+  <div class="tarjeta"><div class="cifra">{{ empleado.get_regimen_efectivo_display }}</div><div class="cifra-etiqueta">Empleado desde {{ empleado.fecha_empleo|date:"m/d/Y" }}</div></div>
+</div>
+{% if user.puede_editar %}
+<form method="post" class="tarjeta" novalidate>
+  {% csrf_token %}
+  <h2>Registrar movimiento</h2>
+  <p class="texto-suave">Use "Saldo inicial" para cargar los balances que traen los empleados de su sistema anterior. Los movimientos no se editan: para corregir, registre un ajuste con su motivo.</p>
+  {% include "_form.html" %}
+  <button class="boton" type="submit">Registrar</button>
+</form>
+{% endif %}
+<div class="tarjeta"><h2>Movimientos</h2>
+  <div class="tabla-contenedor"><table>
+    <thead><tr><th>Fecha</th><th>Tipo</th><th>Movimiento</th><th class="num">Horas</th><th>Detalle</th><th>Usuario</th></tr></thead>
+    <tbody>{% for m in movimientos %}<tr><td>{{ m.fecha|date:"m/d/Y" }}</td><td>{{ m.get_tipo_display }}</td><td>{{ m.get_clase_display }}</td>
+      <td class="num">{{ m.horas }}</td><td class="texto-suave explicacion">{{ m.descripcion }}</td><td>{{ m.creado_por.username|default:"—" }}</td></tr>
+    {% empty %}<tr><td colspan="6" class="vacio">Sin movimientos.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endblock %}

@@ -9,9 +9,11 @@ from apps.companias.models import EstadoVerificacion
 from apps.core.permisos import requiere_admin
 
 from .forms import (
+    BonoFormSet,
     ConceptoDeduccionForm,
     ConceptoIngresoForm,
     CopiarAnioForm,
+    LicenciasFormSet,
     ParametrosForm,
     ReglasFormSet,
     SalarioMinimoForm,
@@ -45,7 +47,23 @@ def _foto_parametros(p):
         f"alimentos {r.periodo_alimentos}"
         for r in p.reglas_horas_extra.all()
     ]
+    foto["licencias"] = [str(r) for r in p.reglas_licencia.all()]
+    foto["bono_navidad"] = [
+        f"{r.get_regimen_display()}: {r.horas_minimas} h; más de {r.umbral_empleados} empleados "
+        f"{r.porcentaje_grande}% máx ${r.tope_grande}; si no {r.porcentaje_pequeno}% máx ${r.tope_pequeno}; "
+        f"salario tope {r.tope_salario or '—'}; período desde mes {r.mes_inicio_periodo}"
+        for r in p.reglas_bono.all()
+    ]
     return foto
+
+
+FORMSETS = (
+    ("tramos", TramosFormSet),
+    ("reglas", ReglasFormSet),
+    ("licencias", LicenciasFormSet),
+    ("bono", BonoFormSet),
+)
+RELACIONES_COPIABLES = ("tramos", "reglas_horas_extra", "reglas_licencia", "reglas_bono")
 
 
 @requiere_admin
@@ -68,16 +86,18 @@ def anio(request, anio):
     parametros = get_object_or_404(ParametrosAnuales, anio=anio)
     antes = _foto_parametros(parametros)
     form = ParametrosForm(request.POST or None, instance=parametros)
-    tramos = TramosFormSet(request.POST or None, instance=parametros, prefix="tramos")
-    reglas = ReglasFormSet(request.POST or None, instance=parametros, prefix="reglas")
-    if request.method == "POST" and form.is_valid() and tramos.is_valid() and reglas.is_valid():
+    formsets = {
+        prefijo: clase(request.POST or None, instance=parametros, prefix=prefijo) for prefijo, clase in FORMSETS
+    }
+    validos = request.method == "POST" and form.is_valid() and all(f.is_valid() for f in formsets.values())
+    if validos:
         with transaction.atomic():
-            cambio = form.has_changed() or tramos.has_changed() or reglas.has_changed()
+            cambio = form.has_changed() or any(f.has_changed() for f in formsets.values())
             parametros = form.save(commit=False)
             _aplicar_verificacion(parametros, form.cleaned_data["marcar_verificado"], cambio, request.user)
             parametros.save()
-            tramos.save()
-            reglas.save()
+            for f in formsets.values():
+                f.save()
         cambios = diferencias(antes, _foto_parametros(parametros))
         if cambios:
             registrar(request, Accion.CONFIGURACION_MODIFICADA, objeto=parametros, cambios=cambios, compania=None)
@@ -86,7 +106,7 @@ def anio(request, anio):
     return render(
         request,
         "parametros/anio.html",
-        {"form": form, "tramos": tramos, "reglas": reglas, "parametros": parametros, "historial": _historial(parametros)},
+        {"form": form, **formsets, "parametros": parametros, "historial": _historial(parametros)},
     )
 
 
@@ -104,14 +124,11 @@ def copiar(request):
             nuevo.verificado_en = None
             nuevo.notas = f"Copiado de {origen.anio}. Actualice los topes y la tabla del año nuevo."
             nuevo.save()
-            for tramo in origen.tramos.all():
-                tramo.pk = None
-                tramo.parametros = nuevo
-                tramo.save()
-            for regla in origen.reglas_horas_extra.all():
-                regla.pk = None
-                regla.parametros = nuevo
-                regla.save()
+            for relacion in RELACIONES_COPIABLES:
+                for fila in getattr(origen, relacion).all():
+                    fila.pk = None
+                    fila.parametros = nuevo
+                    fila.save()
         registrar(request, Accion.CONFIGURACION_MODIFICADA, objeto=nuevo, compania=None,
                   descripcion=f"Parámetros {nuevo.anio} creados copiando {origen.anio}")
         messages.success(request, f"Año {nuevo.anio} creado como copia de {origen.anio}. Quedó POR VERIFICAR.")

@@ -70,6 +70,21 @@ class ParametrosAnuales(VerificableMixin):
     exencion_dependiente = _dinero("exención por dependiente ($ anual)")
     exencion_dependiente_custodia = _dinero("exención por dependiente con custodia compartida ($ anual)")
     exencion_veterano = _dinero("exención de veterano ($ anual)")
+    # Vacaciones y enfermedad
+    horas_por_dia = models.DecimalField(
+        "horas por día de licencia", max_digits=4, decimal_places=2, default=8,
+        help_text="Para convertir días de licencia a horas.",
+    )
+    limite_patrono_pequeno_licencias = models.PositiveSmallIntegerField(
+        "patrono pequeño para licencias: hasta cuántos empleados", default=12
+    )
+    tope_vacaciones_meses = models.PositiveSmallIntegerField(
+        "tope de vacaciones acumuladas (meses de acumulación)", default=24,
+        help_text="Ej.: 24 = hasta dos años de vacaciones acumuladas.",
+    )
+    tope_enfermedad_dias = models.DecimalField(
+        "tope de licencia por enfermedad acumulada (días)", max_digits=5, decimal_places=2, default=15
+    )
 
     class Meta:
         ordering = ["-anio"]
@@ -181,3 +196,69 @@ class ConceptoDeduccion(VerificableMixin):
 
     def __str__(self):
         return self.nombre
+
+
+REGIMENES = [("anterior", "Antes de Ley 4-2017"), ("ley4", "Ley 4-2017")]
+
+
+class ReglaLicencia(models.Model):
+    """Acumulación mensual de vacaciones o enfermedad (Ley 180 / Ley 4-2017)."""
+
+    class Tipo(models.TextChoices):
+        VACACIONES = "vacaciones", "Vacaciones"
+        ENFERMEDAD = "enfermedad", "Enfermedad"
+
+    class Tamano(models.TextChoices):
+        GRANDE = "grande", "Patrono de más empleados que el límite"
+        PEQUENO = "pequeno", "Patrono pequeño (hasta el límite)"
+
+    parametros = models.ForeignKey(ParametrosAnuales, on_delete=models.CASCADE, related_name="reglas_licencia")
+    tipo = models.CharField(max_length=10, choices=Tipo.choices)
+    regimen = models.CharField(max_length=10, choices=REGIMENES)
+    tamano = models.CharField("tamaño del patrono", max_length=10, choices=Tamano.choices)
+    anios_desde = models.DecimalField("años de servicio desde", max_digits=5, decimal_places=2, default=0)
+    anios_hasta = models.DecimalField(
+        "años de servicio hasta", max_digits=5, decimal_places=2, null=True, blank=True,
+        help_text="Vacío = en adelante.",
+    )
+    horas_minimas_mes = models.DecimalField("horas trabajadas mínimas en el mes", max_digits=6, decimal_places=2)
+    dias_por_mes = models.DecimalField("días acumulados por mes", max_digits=5, decimal_places=3)
+
+    class Meta:
+        ordering = ["tipo", "regimen", "tamano", "anios_desde"]
+        verbose_name = "regla de licencia"
+
+    def __str__(self):
+        hasta = f"{self.anios_hasta}" if self.anios_hasta is not None else "∞"
+        return (
+            f"{self.get_tipo_display()} · {self.get_regimen_display()} · {self.get_tamano_display()} · "
+            f"{self.anios_desde}–{hasta} años: {self.dias_por_mes} día(s)/mes con {self.horas_minimas_mes} h"
+        )
+
+
+class ReglaBonoNavidad(models.Model):
+    """Bono de Navidad (Ley 148-1969, enmendada por Ley 4-2017), por régimen."""
+
+    parametros = models.ForeignKey(ParametrosAnuales, on_delete=models.CASCADE, related_name="reglas_bono")
+    regimen = models.CharField(max_length=10, choices=REGIMENES)
+    mes_inicio_periodo = models.PositiveSmallIntegerField(
+        "mes en que empieza el período", default=10, validators=[MinValueValidator(1), MaxValueValidator(12)],
+        help_text="10 = del 1 de octubre del año anterior al 30 de septiembre.",
+    )
+    horas_minimas = models.DecimalField("horas mínimas trabajadas en el período", max_digits=7, decimal_places=2)
+    umbral_empleados = models.PositiveSmallIntegerField(
+        "patrono grande: más de cuántos empleados"
+    )
+    porcentaje_grande = _porcentaje("% patrono grande")
+    tope_grande = _dinero("bono máximo patrono grande ($)")
+    porcentaje_pequeno = _porcentaje("% patrono pequeño")
+    tope_pequeno = _dinero("bono máximo patrono pequeño ($)")
+    tope_salario = _dinero("salario máximo considerado ($)", null=True, blank=True, help_text="Vacío = sin tope de salario.")
+
+    class Meta:
+        ordering = ["regimen"]
+        constraints = [models.UniqueConstraint(fields=["parametros", "regimen"], name="regla_bono_unica")]
+        verbose_name = "regla del bono de Navidad"
+
+    def __str__(self):
+        return f"Bono {self.get_regimen_display()} {self.parametros.anio}"

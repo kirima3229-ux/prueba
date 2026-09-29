@@ -1,0 +1,5 @@
+<div class="acciones submenu">
+  <a class="boton secundario" href="{% url 'licencias:balances' %}">Balances</a>
+  {% if user.puede_editar %}<a class="boton secundario" href="{% url 'licencias:acumular' %}">Acumular mes</a>{% endif %}
+  <a class="boton secundario" href="{% url 'licencias:bono' %}">Bono de Navidad</a>
+</div>

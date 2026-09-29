@@ -7,7 +7,9 @@ from .models import (
     ConceptoDeduccion,
     ConceptoIngreso,
     ParametrosAnuales,
+    ReglaBonoNavidad,
     ReglaHorasExtra,
+    ReglaLicencia,
     SalarioMinimo,
     TramoRetencionPR,
 )
@@ -35,6 +37,9 @@ GRUPOS_PARAMETROS = [
         "exencion_personal_individuo", "exencion_personal_casado", "exencion_dependiente",
         "exencion_dependiente_custodia", "exencion_veterano",
     ]),
+    ("Vacaciones y enfermedad — general", [
+        "horas_por_dia", "limite_patrono_pequeno_licencias", "tope_vacaciones_meses", "tope_enfermedad_dias",
+    ]),
 ]
 
 
@@ -55,6 +60,17 @@ TramosFormSet = inlineformset_factory(
 ReglasFormSet = inlineformset_factory(
     ParametrosAnuales, ReglaHorasExtra,
     fields=["regimen", "diario", "semanal", "septimo_dia", "periodo_alimentos"], extra=0, can_delete=False,
+)
+LicenciasFormSet = inlineformset_factory(
+    ParametrosAnuales, ReglaLicencia,
+    fields=["tipo", "regimen", "tamano", "anios_desde", "anios_hasta", "horas_minimas_mes", "dias_por_mes"],
+    extra=1, can_delete=True,
+)
+BonoFormSet = inlineformset_factory(
+    ParametrosAnuales, ReglaBonoNavidad,
+    fields=["regimen", "mes_inicio_periodo", "horas_minimas", "umbral_empleados", "porcentaje_grande", "tope_grande",
+            "porcentaje_pequeno", "tope_pequeno", "tope_salario"],
+    extra=0, can_delete=False,
 )
 
 

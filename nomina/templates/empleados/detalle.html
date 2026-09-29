@@ -51,5 +51,9 @@
   </dl></div>
 </div>
 {% if empleado.notas %}<div class="tarjeta"><h2>Notas</h2><p>{{ empleado.notas|linebreaksbr }}</p></div>{% endif %}
+<div class="tarjeta"><h2>Vacaciones y enfermedad</h2>
+  <p><a class="boton secundario" href="{% url 'licencias:empleado' empleado.pk %}">Ver balances y movimientos</a>
+     <a class="boton secundario" href="{% url 'calculo:simulador' %}?empleado={{ empleado.pk }}">Simular nómina</a></p>
+</div>
 <div class="tarjeta"><h2>Historial de cambios</h2>{% include "_historial.html" %}</div>
 {% endblock %}

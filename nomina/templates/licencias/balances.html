@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block titulo %}Vacaciones y enfermedad{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <h1>Balances de vacaciones y enfermedad — {{ compania_activa }}</h1>
+  <div class="acciones"><a class="boton secundario" href="?formato=xlsx">Exportar a Excel</a></div>
+</div>
+{% include "licencias/_submenu.html" %}
+<p class="texto-suave">Balances en horas (días de {{ horas_dia }} horas). Cada balance es la suma de sus movimientos: saldo inicial, acumulaciones mensuales, usos y ajustes.</p>
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Núm.</th><th>Empleado</th><th>Régimen</th><th class="num">Vacaciones (h)</th><th class="num">días</th><th class="num">Enfermedad (h)</th><th class="num">días</th></tr></thead>
+  <tbody>
+  {% for f in filas %}
+  <tr>
+    <td>{{ f.e.numero_empleado }}</td>
+    <td><a href="{% url 'licencias:empleado' f.e.pk %}">{{ f.e.nombre_completo }}</a></td>
+    <td>{{ f.e.get_regimen_efectivo_display }}</td>
+    <td class="num">{{ f.vac|floatformat:2 }}</td><td class="num">{{ f.vac_dias|floatformat:2 }}</td>
+    <td class="num">{{ f.enf|floatformat:2 }}</td><td class="num">{{ f.enf_dias|floatformat:2 }}</td>
+  </tr>
+  {% empty %}<tr><td colspan="7" class="vacio">No hay empleados activos.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

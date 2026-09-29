@@ -111,3 +111,34 @@ def empleado(e) -> motor.Empleado:
         r4_retencion_adicional=e.r4_retencion_adicional,
         w4_aplica=e.w4_aplica,
     )
+
+
+# --- Licencias y bono de Navidad ------------------------------------------------------
+
+
+def parametros_anio(anio: int) -> ParametrosAnuales:
+    p = ParametrosAnuales.objects.prefetch_related("reglas_licencia", "reglas_bono").filter(anio=anio).first()
+    if p is None:
+        raise ConfiguracionFaltante(f"No hay parámetros de nómina para {anio}. Un administrador debe crearlos.")
+    return p
+
+
+def reglas_licencia(p: ParametrosAnuales) -> list:
+    from . import licencias
+
+    return [
+        licencias.ReglaLicencia(r.tipo, r.regimen, r.tamano, r.anios_desde, r.anios_hasta, r.horas_minimas_mes, r.dias_por_mes)
+        for r in p.reglas_licencia.all()
+    ]
+
+
+def regla_bono(p: ParametrosAnuales, regimen: str):
+    from . import licencias
+
+    r = p.reglas_bono.filter(regimen=regimen).first()
+    if r is None:
+        raise ConfiguracionFaltante(f"No hay regla del bono de Navidad para {p.anio} ({regimen}).")
+    return licencias.ReglaBono(
+        r.regimen, r.mes_inicio_periodo, r.horas_minimas, r.umbral_empleados, r.porcentaje_grande, r.tope_grande,
+        r.porcentaje_pequeno, r.tope_pequeno, r.tope_salario,
+    )

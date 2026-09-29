@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Bono de Navidad {{ anio }}{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <h1>Bono de Navidad {{ anio }} — {{ compania_activa }}</h1>
+  {% if guardados %}<div class="acciones"><a class="boton secundario" href="?anio={{ anio }}&formato=xlsx">Exportar a Excel</a></div>{% endif %}
+</div>
+{% include "licencias/_submenu.html" %}
+<form class="filtros" method="get">
+  <div class="campo"><label for="anio">Año de pago</label><input class="buscar" id="anio" name="anio" type="number" min="2000" max="2100" value="{{ anio }}"></div>
+  <button class="boton secundario" type="submit">Cambiar año</button>
+</form>
+<p class="texto-suave">Período: {{ desde|date:"m/d/Y" }} al {{ hasta|date:"m/d/Y" }}. La compañía tiene {{ compania_activa.numero_empleados }} empleados declarados (se usa para el porcentaje y el máximo). Escriba las horas trabajadas y el salario de cada empleado en el período; en la Fase 3 vendrán solos de la nómina.</p>
+{% for e in errores %}<div class="mensaje error">{{ e }}</div>{% endfor %}
+{% if filas is not None and not verificado %}<div class="mensaje warning">Las reglas del bono de {{ anio }} están POR VERIFICAR.</div>{% endif %}
+<form method="post" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="anio" value="{{ anio }}">
+  <div class="tabla-contenedor">
+  <table>
+    <thead><tr><th>Empleado</th><th>Régimen</th><th class="num">Horas del período</th><th class="num">Salario del período ($)</th><th class="num">Bono</th><th>Detalle</th></tr></thead>
+    <tbody>
+    {% for g in grid %}
+    <tr>
+      <td>{{ g.e.nombre_completo }}{% if g.guardado.estado == "pagado" %} <span class="etiqueta verde">Pagado</span>{% endif %}</td>
+      <td>{{ g.e.get_regimen_efectivo_display }}</td>
+      <td class="num"><input class="buscar" name="horas_{{ g.e.pk }}" value="{{ g.horas }}" inputmode="decimal"{% if not user.puede_editar %} disabled{% endif %}></td>
+      <td class="num"><input class="buscar" name="salario_{{ g.e.pk }}" value="{{ g.salario }}" inputmode="decimal"{% if not user.puede_editar %} disabled{% endif %}></td>
+      {% if filas is not None %}
+        {% for f in filas %}{% if f.empleado.pk == g.e.pk %}<td class="num">${{ f.resultado.monto|floatformat:2|intcomma }}</td><td class="texto-suave explicacion">{{ f.resultado.explicacion }}</td>{% endif %}{% endfor %}
+      {% elif g.guardado %}
+        <td class="num">${{ g.guardado.monto|floatformat:2|intcomma }}</td><td class="texto-suave explicacion">{{ g.guardado.explicacion }}</td>
+      {% else %}<td></td><td></td>{% endif %}
+    </tr>
+    {% empty %}<tr><td colspan="6" class="vacio">No hay empleados en el período.</td></tr>
+    {% endfor %}
+    </tbody>
+    {% if guardados and filas is None %}<tfoot><tr><th colspan="4">Total guardado</th><th class="num">${{ total_guardado|floatformat:2|intcomma }}</th><th></th></tr></tfoot>{% endif %}
+  </table>
+  </div>
+  {% if user.puede_editar %}
+  <div class="acciones">
+    <button class="boton secundario" type="submit" name="accion" value="vista_previa">Calcular</button>
+    {% if filas is not None and not errores %}<button class="boton" type="submit" name="accion" value="guardar">Guardar cálculo</button>{% endif %}
+  </div>
+  {% endif %}
+</form>
+<p class="texto-suave">El bono debe pagarse no más tarde del 15 de diciembre. El pago en nómina y su tratamiento contributivo se completan en la Fase 3.</p>
+{% endblock %}

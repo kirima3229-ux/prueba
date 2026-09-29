@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block titulo %}Acumular vacaciones y enfermedad{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'licencias:balances' %}">Vacaciones y enfermedad</a></div>
+<div class="encabezado"><h1>Acumulación mensual — {{ mes|stringformat:"02d" }}/{{ anio }}</h1></div>
+{% include "licencias/_submenu.html" %}
+<form class="filtros" method="get">
+  <div class="campo"><label for="mes">Mes</label><select id="mes" name="mes">{% for m in meses %}<option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ m|stringformat:"02d" }}</option>{% endfor %}</select></div>
+  <div class="campo"><label for="anio">Año</label><input class="buscar" id="anio" name="anio" type="number" min="2000" max="2100" value="{{ anio }}"></div>
+  <button class="boton secundario" type="submit">Cambiar mes</button>
+</form>
+<p class="texto-suave">Escriba las <strong>horas trabajadas en el mes</strong> por cada empleado. El sistema aplica las reglas del año (horas mínimas, días por mes según el régimen, la antigüedad y el tamaño del patrono, y los topes). En la Fase 3 las horas vendrán solas de la nómina.</p>
+{% for e in errores %}<div class="mensaje error">{{ e }}</div>{% endfor %}
+{% if resultado and not resultado.verificado %}<div class="mensaje warning">Las reglas de {{ anio }} están POR VERIFICAR.</div>{% endif %}
+<form method="post" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="anio" value="{{ anio }}"><input type="hidden" name="mes" value="{{ mes }}">
+  <div class="tabla-contenedor">
+  <table>
+    <thead><tr><th>Empleado</th><th>Régimen</th><th>Empleo</th><th class="num">Horas trabajadas</th>{% if resultado %}<th class="num">Vacaciones</th><th class="num">Enfermedad</th><th>Detalle</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.e.nombre_completo }}{% if f.ya %} <span class="etiqueta gris">Ya acumulado</span>{% endif %}</td>
+      <td>{{ f.e.get_regimen_efectivo_display }}</td>
+      <td>{{ f.e.fecha_empleo|date:"m/d/Y" }}</td>
+      <td class="num"><input class="buscar" name="horas_{{ f.e.pk }}" value="{{ f.valor }}" inputmode="decimal" {% if f.ya %}disabled{% endif %}></td>
+      {% if resultado %}
+        {% for r in resultado.filas %}{% if r.empleado.pk == f.e.pk %}
+          <td class="num">{{ r.vacaciones.horas }} h</td><td class="num">{{ r.enfermedad.horas }} h</td>
+          <td class="texto-suave explicacion">{{ r.vacaciones.explicacion }}<br>{{ r.enfermedad.explicacion }}</td>
+        {% endif %}{% endfor %}
+      {% endif %}
+    </tr>
+    {% empty %}<tr><td colspan="7" class="vacio">No hay empleados en ese mes.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <div class="acciones">
+    <button class="boton secundario" type="submit" name="accion" value="vista_previa">Vista previa</button>
+    {% if resultado and not errores %}<button class="boton" type="submit" name="accion" value="guardar">Guardar acumulación</button>{% endif %}
+  </div>
+</form>
+{% endblock %}

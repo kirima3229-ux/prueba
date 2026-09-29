@@ -26,6 +26,24 @@
         <td>{{ f.instance.get_regimen_display }}<span class="oculto">{{ f.regimen }}</span></td><td>{{ f.diario }}</td><td>{{ f.semanal }}</td><td>{{ f.septimo_dia }}</td><td>{{ f.periodo_alimentos }}</td></tr>{% endfor %}</tbody></table>
   </fieldset>
 
+  <fieldset><legend>Vacaciones y enfermedad — acumulación mensual</legend>
+    {{ licencias.management_form }}
+    {% if licencias.non_form_errors %}<div class="mensaje error">{{ licencias.non_form_errors }}</div>{% endif %}
+    <div class="tabla-contenedor"><table class="tabla-form"><thead><tr><th>Tipo</th><th>Régimen</th><th>Tamaño del patrono</th><th>Años desde</th><th>Años hasta</th><th>Horas mín./mes</th><th>Días por mes</th><th>Borrar</th></tr></thead>
+      <tbody>{% for f in licencias %}<tr>{% for campo in f.hidden_fields %}{{ campo }}{% endfor %}
+        <td>{{ f.tipo }}</td><td>{{ f.regimen }}</td><td>{{ f.tamano }}</td><td>{{ f.anios_desde }}</td><td>{{ f.anios_hasta }}</td>
+        <td>{{ f.horas_minimas_mes }}</td><td>{{ f.dias_por_mes }}{{ f.errors }}</td><td>{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+    <p class="texto-suave">Cada tramo de antigüedad empieza "a partir del año indicado más un día" (Ley 4-2017). El tamaño del patrono usa el número de empleados declarado en la compañía y el límite de arriba.</p>
+  </fieldset>
+
+  <fieldset><legend>Bono de Navidad</legend>
+    {{ bono.management_form }}
+    <div class="tabla-contenedor"><table class="tabla-form"><thead><tr><th>Régimen</th><th>Mes inicio</th><th>Horas mín.</th><th>Patrono grande: más de</th><th>% grande</th><th>Máx. grande $</th><th>% pequeño</th><th>Máx. pequeño $</th><th>Salario tope $</th></tr></thead>
+      <tbody>{% for f in bono %}<tr>{% for campo in f.hidden_fields %}{{ campo }}{% endfor %}
+        <td>{{ f.instance.get_regimen_display }}<span class="oculto">{{ f.regimen }}</span></td><td>{{ f.mes_inicio_periodo }}</td><td>{{ f.horas_minimas }}</td>
+        <td>{{ f.umbral_empleados }}</td><td>{{ f.porcentaje_grande }}</td><td>{{ f.tope_grande }}</td><td>{{ f.porcentaje_pequeno }}</td><td>{{ f.tope_pequeno }}</td><td>{{ f.tope_salario }}{{ f.errors }}</td></tr>{% endfor %}</tbody></table></div>
+  </fieldset>
+
   <fieldset><legend>Confirmación</legend>
     {% include "_campo.html" with campo=form.notas %}
     {% include "_campo.html" with campo=form.marcar_verificado %}
