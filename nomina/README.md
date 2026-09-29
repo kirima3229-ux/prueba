@@ -106,10 +106,17 @@ python manage.py shell -c "from django_otp.plugins.otp_totp.models import TOTPDe
 4. **Usuarios** → crear preparadores y asignarles compañías. Reciben una contraseña temporal que deben cambiar al entrar.
 5. **Empleados** → crear uno por uno o **Importar Excel/CSV** (descargue la plantilla). La importación es
    "todo o nada": si una fila tiene error no se importa ninguna, y se muestra la fila, la columna y el motivo.
-6. **Servicios prestados** → proveedores que no son empleados (individuos con SSN o entidades con EIN, ambos
-   cifrados), con el certificado de relevo de retención de Hacienda (total o parcial, con porcentaje y fecha de
-   vencimiento). El inicio avisa cuando un relevo está vencido. El registro de pagos, la retención (tasa
-   configurable por año) y la declaración informativa de servicios prestados se añaden en las fases 2 a 4.
+6. **Servicios** (servicios prestados) → proveedores que no son empleados: individuos con SSN o entidades con EIN
+   (cifrados), con su relevo de retención (parcial con porcentaje, total, o exento por declaración jurada de la
+   Sección 1062.03(b)) y la fecha de vencimiento. Se pueden importar desde Excel/CSV.
+   - **Pagos:** se registran uno por uno (con vista previa del cálculo) o se importan desde Excel/CSV. La
+     retención se calcula sola: **10% sobre el exceso de los primeros $500 pagados en el año a cada proveedor**,
+     según el relevo vigente **en la fecha del pago**. Tasa y exención se configuran por año en
+     *Servicios → Tasa y exención* (cargadas POR VERIFICAR para 2025 y 2026).
+   - Un pago registrado no se edita: se **anula** con motivo y se registra de nuevo. El resumen anual recalcula
+     la retención de cada proveedor y marca "Revisar" si un pago anulado cambió lo que se debió retener.
+   - **Resumen anual** por proveedor (pagado, exención, sujeto, retenido), exportable a Excel: es la base para
+     la 480.6SP, que se genera en la Fase 4. En la Fase 3 los pagos también se podrán incluir en el ciclo de nómina.
 7. El selector de la barra superior cambia la compañía activa sin volver a entrar.
 
 ### Régimen laboral (Ley 4-2017)

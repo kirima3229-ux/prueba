@@ -190,3 +190,9 @@ legend { font-weight: 700; padding: 0 0.4rem; }
 
 .rejilla.ancha { grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
 dl.datos dd { overflow-wrap: anywhere; }
+table.calculo th { text-transform: none; letter-spacing: 0; font-size: 0.9rem; background: none; color: var(--texto); font-weight: 400; }
+tfoot th { background: #eef1f5; color: var(--texto); }
+details summary { cursor: pointer; color: var(--primario); }
+.submenu { margin-bottom: 1rem; }
+.barra { gap: 1rem; }
+.menu a { padding: 0.45rem 0.6rem; }

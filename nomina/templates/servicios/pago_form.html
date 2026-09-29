@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block titulo %}Registrar pago{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'servicios:lista' %}">Servicios prestados</a> › <a href="{% url 'servicios:pagos' %}">Pagos</a></div>
+<div class="encabezado"><h1>Registrar pago por servicios prestados</h1></div>
+<div class="rejilla ancha">
+  <form method="post" class="tarjeta" novalidate
+        hx-post="{% url 'servicios:pago_nuevo' %}" hx-target="#calculo"
+        hx-trigger="change delay:200ms, input changed delay:600ms from:#id_monto">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="mensaje error">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="campos-rejilla">{% for campo in form %}{% include "_campo.html" %}{% endfor %}</div>
+    <div class="acciones">
+      <button class="boton secundario" type="submit" name="confirmar" value="0">Calcular</button>
+      <button class="boton" type="submit" name="confirmar" value="1">Registrar pago</button>
+    </div>
+    <p class="texto-suave">Un pago registrado no se puede editar; si hay un error se anula con un motivo y se registra de nuevo.</p>
+  </form>
+  <div class="tarjeta">
+    <h2>Cálculo de la retención</h2>
+    <div id="calculo">{% include "servicios/_calculo.html" %}</div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% load humanize %}
+{% if error %}
+  <div class="mensaje error">{{ error }}</div>
+{% elif calculo %}
+  {% with r=calculo.resultado %}
+  <table class="calculo">
+    <tbody>
+      <tr><th>Monto bruto</th><td class="num">${{ r.monto|floatformat:2|intcomma }}</td></tr>
+      <tr><th>Pagado antes en {{ calculo.config.anio }} a este proveedor</th><td class="num">${{ r.acumulado_previo|floatformat:2|intcomma }}</td></tr>
+      <tr><th>Exención aplicada (primeros ${{ calculo.config.exencion_anual|floatformat:2|intcomma }} del año)</th><td class="num">${{ r.exencion_aplicada|floatformat:2|intcomma }}</td></tr>
+      <tr><th>Cantidad sujeta</th><td class="num">${{ r.base_sujeta|floatformat:2|intcomma }}</td></tr>
+      <tr><th>Tasa — {{ r.tratamiento_etiqueta }}</th><td class="num">{{ r.tasa|floatformat:2 }}%</td></tr>
+      <tr><th>Retención</th><td class="num"><strong>${{ r.retencion|floatformat:2|intcomma }}</strong></td></tr>
+      <tr><th>Neto a pagar</th><td class="num"><strong>${{ r.neto|floatformat:2|intcomma }}</strong></td></tr>
+    </tbody>
+  </table>
+  {% for aviso in calculo.avisos %}<div class="mensaje warning">{{ aviso }}</div>{% endfor %}
+  {% endwith %}
+{% else %}
+  <p class="texto-suave">Seleccione el proveedor, la fecha y el monto para ver la retención.</p>
+{% endif %}

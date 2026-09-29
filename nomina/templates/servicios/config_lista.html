@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Retención por servicios prestados{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'servicios:lista' %}">Servicios prestados</a></div>
+<div class="encabezado"><h1>Tasa y exención por año</h1>
+  <div class="acciones"><a class="boton" href="{% url 'servicios:config_nueva' %}">Añadir año</a></div></div>
+<p class="texto-suave">Sección 1062.03: retención sobre pagos por servicios prestados, después de la exención anual por proveedor. Aplica a todas las compañías.</p>
+<table>
+  <thead><tr><th>Año</th><th class="num">Tasa</th><th class="num">Exención anual</th><th>Estado</th><th>Notas</th><th></th></tr></thead>
+  <tbody>
+  {% for c in configs %}
+  <tr><td>{{ c.anio }}</td><td class="num">{{ c.tasa_general }}%</td><td class="num">${{ c.exencion_anual }}</td>
+    <td>{% if c.estado == "verificado" %}<span class="etiqueta verde">Verificado</span> <small class="texto-suave">{{ c.verificado_por.username }} {{ c.verificado_en|date:"m/d/Y" }}</small>{% else %}<span class="etiqueta amarilla">POR VERIFICAR</span>{% endif %}</td>
+    <td>{{ c.notas }}</td>
+    <td><a class="boton pequeno secundario" href="{% url 'servicios:config_editar' c.pk %}">Editar</a></td></tr>
+  {% empty %}<tr><td colspan="6" class="vacio">Sin configuración.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

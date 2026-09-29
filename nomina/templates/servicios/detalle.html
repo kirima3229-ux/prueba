@@ -6,7 +6,8 @@
   <h1>{{ proveedor.nombre_mostrar }} {% if proveedor.activo %}<span class="etiqueta verde">Activo</span>{% else %}<span class="etiqueta gris">Inactivo</span>{% endif %}</h1>
   {% if user.puede_editar %}
   <div class="acciones">
-    <a class="boton" href="{% url 'servicios:editar' proveedor.pk %}">Editar</a>
+    {% if proveedor.activo %}<a class="boton" href="{% url 'servicios:pago_nuevo' %}?proveedor={{ proveedor.pk }}">Registrar pago</a>{% endif %}
+    <a class="boton secundario" href="{% url 'servicios:editar' proveedor.pk %}">Editar</a>
     <form class="en-linea" method="post" action="{% url 'servicios:cambiar_estado' proveedor.pk %}" data-confirmar="¿{% if proveedor.activo %}Desactivar{% else %}Reactivar{% endif %} a {{ proveedor.nombre_mostrar }}?">{% csrf_token %}<button class="boton secundario" type="submit">{% if proveedor.activo %}Desactivar{% else %}Reactivar{% endif %}</button></form>
   </div>
   {% endif %}
@@ -33,7 +34,18 @@
     {% endif %}
     <dt>Depósito directo</dt><dd>{% if proveedor.deposito_directo %}{{ proveedor.banco_nombre }} · ruta {{ proveedor.banco_ruta }} · cuenta <span class="mono">{{ proveedor.cuenta_enmascarada }}</span> ({{ proveedor.get_banco_tipo_cuenta_display }}){% else %}No{% endif %}</dd>
   </dl>
-  <p class="texto-suave">El registro de pagos, la retención y la declaración informativa se añaden en las próximas fases.</p></div>
+  </div>
+</div>
+<div class="tarjeta">
+  <div class="encabezado"><h2>Pagos {{ anio }}</h2><a href="{% url 'servicios:pagos' %}?anio={{ anio }}&proveedor={{ proveedor.pk }}">Ver todos</a></div>
+  <p>Pagado en el año: <strong>${{ acumulado|floatformat:2 }}</strong> · Retenido: <strong>${{ retenido|floatformat:2 }}</strong></p>
+  <table>
+    <thead><tr><th>Fecha</th><th>Factura</th><th class="num">Monto</th><th class="num">Retención</th><th class="num">Neto</th><th></th></tr></thead>
+    <tbody>{% for p in pagos %}<tr><td><a href="{% url 'servicios:pago_detalle' p.pk %}">{{ p.fecha|date:"m/d/Y" }}</a></td><td>{{ p.referencia|default:"—" }}</td>
+      <td class="num">${{ p.monto|floatformat:2 }}</td><td class="num">${{ p.retencion|floatformat:2 }}</td><td class="num">${{ p.neto|floatformat:2 }}</td>
+      <td>{% if p.estado == "anulado" %}<span class="etiqueta roja">Anulado</span>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="6" class="vacio">Sin pagos este año.</td></tr>{% endfor %}</tbody>
+  </table>
 </div>
 {% if proveedor.notas %}<div class="tarjeta"><h2>Notas</h2><p>{{ proveedor.notas|linebreaksbr }}</p></div>{% endif %}
 <div class="tarjeta"><h2>Historial de cambios</h2>{% include "_historial.html" %}</div>

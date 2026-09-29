@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Pago {{ pago.pk }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'servicios:lista' %}">Servicios prestados</a> › <a href="{% url 'servicios:pagos' %}?anio={{ pago.anio }}">Pagos {{ pago.anio }}</a></div>
+<div class="encabezado">
+  <h1>Pago a {{ pago.proveedor.nombre_mostrar }} {% if pago.estado == "anulado" %}<span class="etiqueta roja">Anulado</span>{% else %}<span class="etiqueta verde">Registrado</span>{% endif %}</h1>
+</div>
+{% if pago.estado == "anulado" %}
+<div class="mensaje error">Anulado por {{ pago.anulado_por.username }} el {{ pago.anulado_en|date:"m/d/Y h:i A" }}: {{ pago.motivo_anulacion }}</div>
+{% endif %}
+{% if not pago.config_verificada %}<div class="mensaje warning">Este pago se calculó con una tasa/exención que estaba POR VERIFICAR.</div>{% endif %}
+<div class="rejilla ancha">
+  <div class="tarjeta"><h2>Pago</h2><dl class="datos">
+    <dt>Proveedor</dt><dd><a href="{% url 'servicios:detalle' pago.proveedor.pk %}">{{ pago.proveedor }}</a> · {{ pago.proveedor.identificacion_enmascarada }}</dd>
+    <dt>Fecha</dt><dd>{{ pago.fecha|date:"m/d/Y" }}</dd>
+    <dt>Factura / referencia</dt><dd>{{ pago.referencia|default:"—" }}</dd>
+    <dt>Descripción</dt><dd>{{ pago.descripcion|default:"—" }}</dd>
+    <dt>Método</dt><dd>{{ pago.get_metodo_display }}{% if pago.numero_cheque %} #{{ pago.numero_cheque }}{% endif %}</dd>
+    <dt>Origen</dt><dd>{{ pago.get_origen_display }}</dd>
+    <dt>Registrado por</dt><dd>{{ pago.creado_por.username|default:"—" }} el {{ pago.creado|date:"m/d/Y h:i A" }}</dd>
+  </dl></div>
+  <div class="tarjeta"><h2>Retención</h2><dl class="datos">
+    <dt>Monto bruto</dt><dd>${{ pago.monto|floatformat:2|intcomma }}</dd>
+    <dt>Pagado antes en el año</dt><dd>${{ pago.acumulado_previo|floatformat:2|intcomma }}</dd>
+    <dt>Exención aplicada</dt><dd>${{ pago.exencion_aplicada|floatformat:2|intcomma }}</dd>
+    <dt>Cantidad sujeta</dt><dd>${{ pago.base_sujeta|floatformat:2|intcomma }}</dd>
+    <dt>Tratamiento</dt><dd>{{ pago.get_tratamiento_display }}{% if pago.motivo_exencion %} — {{ pago.motivo_exencion }}{% endif %}</dd>
+    <dt>Tasa</dt><dd>{{ pago.tasa_aplicada|floatformat:2 }}%</dd>
+    <dt>Retención</dt><dd><strong>${{ pago.retencion|floatformat:2|intcomma }}</strong></dd>
+    <dt>Neto pagado</dt><dd><strong>${{ pago.neto|floatformat:2|intcomma }}</strong></dd>
+  </dl>
+  <details><summary>Detalle del cálculo</summary><p>{{ pago.explicacion|linebreaksbr }}</p></details></div>
+</div>
+{% if pago.estado == "registrado" and user.puede_editar %}
+<form method="post" action="{% url 'servicios:pago_anular' pago.pk %}" class="tarjeta" data-confirmar="¿Anular este pago? No se puede deshacer.">
+  {% csrf_token %}
+  <h2>Anular pago</h2>
+  {% if posteriores %}<div class="mensaje warning">Hay {{ posteriores }} pago(s) posterior(es) a este proveedor en {{ pago.anio }}. Su retención no se recalcula automáticamente; el resumen anual marcará la diferencia para revisarla.</div>{% endif %}
+  {% include "_form.html" %}
+  <button class="boton peligro" type="submit">Anular</button>
+</form>
+{% endif %}
+<div class="tarjeta"><h2>Historial</h2>{% include "_historial.html" %}</div>
+{% endblock %}

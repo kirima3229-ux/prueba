@@ -25,8 +25,16 @@ def datos(compania, admin):
     proveedor = crear_proveedor(compania, relevo="parcial", relevo_porcentaje="5.00", relevo_vigente_hasta=date(2020, 1, 1))
     entidad = crear_proveedor(compania, numero="P-2", tipo="ein", identificacion="661234567", tipo_persona="entidad", nombre="ACME LLC", apellido_paterno="")
     inactivo = crear_empleado(compania, numero="101", ssn="234567890", activo=False)
+    from decimal import Decimal
+
+    from apps.servicios import pagos
+
+    pago, _ = pagos.registrar(proveedor=entidad, fecha=date.today(), monto=Decimal("1500"), usuario=admin, numero_cheque="1")
+    anulado, _ = pagos.registrar(proveedor=entidad, fecha=date.today(), monto=Decimal("200"), usuario=admin, numero_cheque="2")
+    anulado.estado = "anulado"
+    anulado.save(update_fields=["estado"])
     registrar(accion=Accion.LOGIN, usuario=admin, descripcion="prueba", cambios={"campo": {"antes": 1, "despues": 2}})
-    return {"compania": compania, "depto": depto, "cfse": cfse, "tasas": tasas, "empleado": empleado, "inactivo": inactivo, "proveedor": proveedor, "entidad": entidad}
+    return {"compania": compania, "depto": depto, "cfse": cfse, "tasas": tasas, "empleado": empleado, "inactivo": inactivo, "proveedor": proveedor, "entidad": entidad, "pago": pago, "anulado": anulado}
 
 
 def _pantallas(d, admin):
@@ -55,7 +63,18 @@ def _pantallas(d, admin):
         reverse("servicios:detalle", args=[d["proveedor"].pk]),
         reverse("servicios:detalle", args=[d["entidad"].pk]),
         reverse("servicios:editar", args=[d["proveedor"].pk]),
+        reverse("servicios:importar_proveedores"),
+        reverse("servicios:pagos"),
+        reverse("servicios:pagos") + "?estado=todos&anio=2026&proveedor=" + str(d["entidad"].pk),
+        reverse("servicios:pago_nuevo"),
+        reverse("servicios:pago_nuevo") + "?proveedor=" + str(d["entidad"].pk),
+        reverse("servicios:pago_detalle", args=[d["pago"].pk]),
+        reverse("servicios:pago_detalle", args=[d["anulado"].pk]),
+        reverse("servicios:importar_pagos"),
+        reverse("servicios:resumen"),
     ], [
+        reverse("servicios:config_lista"),
+        reverse("servicios:config_nueva"),
         reverse("cuentas:usuarios"),
         reverse("cuentas:usuario_nuevo"),
         reverse("cuentas:usuario_editar", args=[admin.pk]),

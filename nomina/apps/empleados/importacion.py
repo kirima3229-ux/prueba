@@ -8,18 +8,13 @@ Reglas:
 - Departamentos y clasificaciones CFSE que no existan se crean.
 """
 
-import csv
-import io
-import unicodedata
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from decimal import Decimal
 
 from django.db import transaction
-from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, PatternFill
 
 from apps.companias.models import ClasificacionCFSE, Departamento
+from apps.core import hojas
+from apps.core.hojas import ErrorFila
 
 from .forms import EmpleadoForm
 from .models import Empleado
@@ -93,18 +88,6 @@ VALORES_POR_DEFECTO = {
 COLUMNAS_RELLENO_CEROS = {"ssn": 9, "banco_ruta": 9, "codigo_postal": 5}
 
 
-def _normalizar(texto) -> str:
-    texto = unicodedata.normalize("NFKD", str(texto or "")).encode("ascii", "ignore").decode("ascii")
-    return texto.strip().lower().replace(" ", "_").replace("-", "_")
-
-
-@dataclass
-class ErrorFila:
-    fila: int
-    columna: str
-    mensaje: str
-
-
 @dataclass
 class Resultado:
     total_filas: int = 0
@@ -119,89 +102,10 @@ class Resultado:
         return not self.errores and self.total_filas > 0
 
 
-def _texto_celda(valor, columna: str) -> str:
-    if valor is None:
-        return ""
-    if isinstance(valor, datetime):
-        return valor.date().isoformat()
-    if isinstance(valor, date):
-        return valor.isoformat()
-    if isinstance(valor, bool):
-        return "si" if valor else "no"
-    if isinstance(valor, int):
-        texto = str(valor)
-        if columna in COLUMNAS_RELLENO_CEROS:
-            texto = texto.zfill(COLUMNAS_RELLENO_CEROS[columna])
-        return texto
-    if isinstance(valor, float):
-        if valor.is_integer() and columna in COLUMNAS_RELLENO_CEROS:
-            return str(int(valor)).zfill(COLUMNAS_RELLENO_CEROS[columna])
-        return format(Decimal(str(valor)), "f")
-    return str(valor).strip()
-
-
-def leer_archivo(archivo) -> list[dict]:
-    """Devuelve una lista de filas {columna_normalizada: texto}."""
-    nombre = archivo.name.lower()
-    if nombre.endswith(".xlsx"):
-        libro = load_workbook(archivo, read_only=True, data_only=True)
-        hoja = libro["Empleados"] if "Empleados" in libro.sheetnames else libro.worksheets[0]
-        filas = hoja.iter_rows(values_only=True)
-        encabezado = [_normalizar(c) for c in next(filas, [])]
-        datos = []
-        for valores in filas:
-            fila = {
-                encabezado[i]: _texto_celda(v, encabezado[i])
-                for i, v in enumerate(valores)
-                if i < len(encabezado) and encabezado[i]
-            }
-            datos.append(fila)
-        libro.close()
-        return datos
-
-    crudo = archivo.read()
-    try:
-        texto = crudo.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        texto = crudo.decode("cp1252")
-    try:
-        dialecto = csv.Sniffer().sniff(texto[:4096], delimiters=",;\t")
-    except csv.Error:
-        dialecto = csv.excel
-    lector = csv.reader(io.StringIO(texto), dialecto)
-    encabezado = [_normalizar(c) for c in next(lector, [])]
-    return [
-        {encabezado[i]: v.strip() for i, v in enumerate(valores) if i < len(encabezado) and encabezado[i]}
-        for valores in lector
-    ]
-
-
-def _a_booleano(texto: str) -> bool | None:
-    t = _normalizar(texto)
-    if t in ("", "no", "n", "0", "false", "falso"):
-        return False
-    if t in ("si", "s", "1", "x", "true", "cierto", "yes", "y"):
-        return True
-    return None
-
-
-def _opcion(texto: str, choices) -> str:
-    """Acepta el código o la etiqueta (sin importar mayúsculas ni acentos)."""
-    t = _normalizar(texto)
-    for valor, etiqueta in choices:
-        if t in (_normalizar(valor), _normalizar(etiqueta)):
-            return valor
-    return texto
-
-
-def _fila_vacia(fila: dict) -> bool:
-    return not any(v for v in fila.values())
-
-
 def procesar(archivo, compania, usuario, solo_validar=True) -> Resultado:
     resultado = Resultado()
     try:
-        filas = leer_archivo(archivo)
+        filas = hojas.leer_archivo(archivo, "Empleados", COLUMNAS_RELLENO_CEROS)
     except Exception:  # archivo dañado o formato inesperado
         resultado.errores.append(ErrorFila(0, "", "No se pudo leer el archivo. Verifique que sea .xlsx o .csv válido."))
         return resultado
@@ -221,7 +125,7 @@ def procesar(archivo, compania, usuario, solo_validar=True) -> Resultado:
     validos = []
 
     for indice, fila in enumerate(filas, start=2):  # fila 1 = encabezado
-        if _fila_vacia(fila):
+        if hojas.fila_vacia(fila):
             continue
         resultado.total_filas += 1
         if resultado.total_filas > MAX_FILAS:
@@ -236,7 +140,7 @@ def procesar(archivo, compania, usuario, solo_validar=True) -> Resultado:
             if not valor and campo in VALORES_POR_DEFECTO:
                 valor = VALORES_POR_DEFECTO[campo]
             if campo in BOOLEANOS:
-                booleano = _a_booleano(valor)
+                booleano = hojas.a_booleano(valor)
                 if booleano is None:
                     resultado.errores.append(ErrorFila(indice, columna, f"Valor '{valor}' no es si/no."))
                     continue
@@ -245,7 +149,7 @@ def procesar(archivo, compania, usuario, solo_validar=True) -> Resultado:
                 continue
             modelo = campos_modelo.get(campo)
             if valor and modelo is not None and modelo.choices:
-                valor = _opcion(valor, modelo.choices)
+                valor = hojas.opcion(valor, modelo.choices)
             datos[campo] = valor
 
         form = EmpleadoForm(datos, compania=compania)
@@ -301,35 +205,12 @@ def procesar(archivo, compania, usuario, solo_validar=True) -> Resultado:
 
 
 def plantilla_xlsx() -> bytes:
-    libro = Workbook()
-    hoja = libro.active
-    hoja.title = "Empleados"
-    negrita = Font(bold=True)
-    requerido = PatternFill("solid", fgColor="FDE68A")
-    for i, (columna, _campo, req, _desc) in enumerate(COLUMNAS, start=1):
-        celda = hoja.cell(row=1, column=i, value=columna)
-        celda.font = negrita
-        if req:
-            celda.fill = requerido
-        hoja.column_dimensions[celda.column_letter].width = max(14, len(columna) + 2)
-    # Formato texto para no perder ceros a la izquierda.
-    for columna in ("ssn", "banco_ruta", "banco_cuenta", "codigo_postal", "numero_empleado"):
-        letra = hoja.cell(row=1, column=[c[0] for c in COLUMNAS].index(columna) + 1).column_letter
-        for fila in range(2, 502):
-            hoja[f"{letra}{fila}"].number_format = "@"
-
-    ayuda = libro.create_sheet("Instrucciones")
-    ayuda.append(["Columna", "Requerida", "Valores / formato"])
-    for celda in ayuda[1]:
-        celda.font = negrita
-    for columna, _campo, req, desc in COLUMNAS:
-        ayuda.append([columna, "Sí" if req else "", desc])
-    ayuda.append([])
-    ayuda.append(["Las columnas en amarillo son requeridas. Un empleado por fila."])
-    ayuda.append(["Si alguna fila tiene errores, no se importa ninguna. Corrija y vuelva a subir."])
-    ayuda.column_dimensions["A"].width = 38
-    ayuda.column_dimensions["C"].width = 60
-
-    salida = io.BytesIO()
-    libro.save(salida)
-    return salida.getvalue()
+    return hojas.plantilla_xlsx(
+        "Empleados",
+        [(c[0], c[2], c[3]) for c in COLUMNAS],
+        ("ssn", "banco_ruta", "banco_cuenta", "codigo_postal", "numero_empleado"),
+        [
+            "Las columnas en amarillo son requeridas. Un empleado por fila.",
+            "Si alguna fila tiene errores, no se importa ninguna. Corrija y vuelva a subir.",
+        ],
+    )

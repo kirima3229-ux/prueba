@@ -3,8 +3,13 @@
 {% block contenido %}
 <div class="encabezado">
   <h1>Proveedores de servicios — {{ compania_activa }}</h1>
-  {% if user.puede_editar %}<div class="acciones"><a class="boton" href="{% url 'servicios:nuevo' %}">Nuevo proveedor</a></div>{% endif %}
+  {% if user.puede_editar %}<div class="acciones">
+    <a class="boton" href="{% url 'servicios:nuevo' %}">Nuevo proveedor</a>
+    <a class="boton secundario" href="{% url 'servicios:importar_proveedores' %}">Importar Excel/CSV</a>
+    <a class="boton" href="{% url 'servicios:pago_nuevo' %}">Registrar pago</a>
+  </div>{% endif %}
 </div>
+{% include "servicios/_submenu.html" %}
 <p class="texto-suave">Personas y entidades que prestan servicios a la compañía y no son empleados (pagos sujetos a retención en el origen por servicios prestados).</p>
 <form class="filtros" method="get" hx-get="{% url 'servicios:lista' %}" hx-target="#tabla-proveedores" hx-trigger="input changed delay:300ms from:input[name=q], change from:select, submit" hx-push-url="true">
   <div class="campo"><label for="q">Buscar</label><input class="buscar" id="q" type="search" name="q" value="{{ q }}" placeholder="Nombre, número, servicio o últimos 4"></div>

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django import forms
 
 from apps.core.validadores import (
@@ -8,7 +10,7 @@ from apps.core.validadores import (
 )
 from apps.empleados.forms import FechaInput
 
-from .models import ProveedorServicios
+from .models import ConfigRetencionServicios, PagoServicio, ProveedorServicios
 
 SECCIONES = [
     ("Identificación", [
@@ -115,8 +117,9 @@ class ProveedorServiciosForm(forms.ModelForm):
                 self.add_error("relevo_porcentaje", "Indique el porcentaje del certificado de relevo parcial.")
             elif not (0 <= porcentaje < 100):
                 self.add_error("relevo_porcentaje", "Debe estar entre 0 y 100.")
-        elif relevo == ProveedorServicios.Relevo.NINGUNO:
+        else:
             datos["relevo_porcentaje"] = None
+        if relevo == ProveedorServicios.Relevo.NINGUNO:
             datos["relevo_vigente_hasta"] = None
             datos["relevo_numero"] = ""
         if relevo in (ProveedorServicios.Relevo.PARCIAL, ProveedorServicios.Relevo.TOTAL):
@@ -149,3 +152,51 @@ class ProveedorServiciosForm(forms.ModelForm):
         if commit:
             proveedor.save()
         return proveedor
+
+
+class PagoForm(forms.Form):
+    proveedor = forms.ModelChoiceField(label="Proveedor", queryset=ProveedorServicios.objects.none())
+    fecha = forms.DateField(label="Fecha del pago", widget=FechaInput())
+    monto = forms.DecimalField(label="Monto bruto ($)", max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+    referencia = forms.CharField(label="Factura / referencia", max_length=50, required=False)
+    descripcion = forms.CharField(label="Descripción", max_length=200, required=False)
+    metodo = forms.ChoiceField(label="Método de pago", choices=PagoServicio.Metodo.choices)
+    numero_cheque = forms.CharField(label="Número de cheque", max_length=30, required=False)
+    exento = forms.BooleanField(
+        label="Este pago está exento de retención (por ejemplo, un servicio de la Sección 1062.03(b))",
+        required=False,
+    )
+    motivo_exencion = forms.CharField(label="Motivo de la exención", max_length=200, required=False)
+
+    def __init__(self, *args, compania, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["proveedor"].queryset = ProveedorServicios.objects.filter(compania=compania, activo=True)
+
+    def clean(self):
+        datos = super().clean()
+        if datos.get("exento") and not datos.get("motivo_exencion", "").strip():
+            self.add_error("motivo_exencion", "Indique el motivo de la exención.")
+        if datos.get("metodo") == PagoServicio.Metodo.CHEQUE and not datos.get("numero_cheque"):
+            self.add_error("numero_cheque", "Indique el número de cheque.")
+        return datos
+
+
+class AnularPagoForm(forms.Form):
+    motivo = forms.CharField(label="Motivo de la anulación", max_length=200)
+
+
+class ConfigRetencionForm(forms.ModelForm):
+    marcar_verificado = forms.BooleanField(
+        label="Confirmo que la tasa y la exención son correctas (marcar como VERIFICADO)", required=False
+    )
+
+    class Meta:
+        model = ConfigRetencionServicios
+        fields = ["anio", "tasa_general", "exencion_anual", "notas"]
+        widgets = {"notas": forms.Textarea(attrs={"rows": 2})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["anio"].disabled = True
+            self.fields["marcar_verificado"].initial = self.instance.estado == "verificado"

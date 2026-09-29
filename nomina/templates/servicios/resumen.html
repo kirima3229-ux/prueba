@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Resumen servicios prestados {{ anio }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'servicios:lista' %}">Servicios prestados</a></div>
+<div class="encabezado">
+  <h1>Resumen anual de servicios prestados — {{ anio }}</h1>
+  <div class="acciones"><a class="boton secundario" href="?anio={{ anio }}&formato=xlsx">Exportar a Excel</a></div>
+</div>
+{% include "servicios/_submenu.html" %}
+<form class="filtros" method="get">
+  <div class="campo"><label for="anio">Año</label><input class="buscar" id="anio" name="anio" type="number" min="2000" max="2100" value="{{ anio }}"></div>
+  <button class="boton" type="submit">Ver</button>
+</form>
+<p class="texto-suave">Base para la Declaración Informativa de Servicios Prestados (480.6SP): incluye todos los pagos del año, también los primeros ${{ config.exencion_anual|default:"500"|floatformat:2 }} y los pagos con relevo. Los formularios oficiales se generan en la Fase 4.</p>
+{% if con_diferencias %}<div class="mensaje warning">Hay proveedores cuya retención no coincide con el recálculo (por ejemplo, por un pago anulado). Revise las filas marcadas.</div>{% endif %}
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Núm.</th><th>Proveedor</th><th>Identificación</th><th class="num">Pagos</th><th class="num">Total pagado</th><th class="num">Exención</th><th class="num">Sujeto</th><th class="num">Retenido</th><th class="num">Neto</th><th></th></tr></thead>
+  <tbody>
+  {% for f in filas %}
+  <tr>
+    <td>{{ f.proveedor.numero }}</td>
+    <td><a href="{% url 'servicios:pagos' %}?anio={{ anio }}&proveedor={{ f.proveedor.pk }}">{{ f.proveedor.nombre_mostrar }}</a></td>
+    <td class="mono">{{ f.proveedor.identificacion_enmascarada }}</td>
+    <td class="num">{{ f.cantidad }}</td>
+    <td class="num">${{ f.monto|floatformat:2|intcomma }}</td>
+    <td class="num">${{ f.exencion|floatformat:2|intcomma }}</td>
+    <td class="num">${{ f.base|floatformat:2|intcomma }}</td>
+    <td class="num">${{ f.retencion|floatformat:2|intcomma }}</td>
+    <td class="num">${{ f.neto|floatformat:2|intcomma }}</td>
+    <td>{% if f.diferencia %}<span class="etiqueta amarilla" title="Recálculo: ${{ f.esperada|floatformat:2 }}">Revisar ({{ f.diferencia|floatformat:2 }})</span>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="10" class="vacio">No hay pagos registrados en {{ anio }}.</td></tr>
+  {% endfor %}
+  </tbody>
+  {% if filas %}
+  <tfoot><tr><th colspan="4">Total</th><th class="num">${{ totales.monto|floatformat:2|intcomma }}</th><th class="num">${{ totales.exencion|floatformat:2|intcomma }}</th><th class="num">${{ totales.base|floatformat:2|intcomma }}</th><th class="num">${{ totales.retencion|floatformat:2|intcomma }}</th><th class="num">${{ totales.neto|floatformat:2|intcomma }}</th><th></th></tr></tfoot>
+  {% endif %}
+</table>
+</div>
+{% endblock %}

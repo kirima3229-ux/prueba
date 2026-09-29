@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'servicios:lista' %}">Servicios prestados</a></div>
+<div class="encabezado"><h1>{{ titulo }} — {{ compania_activa }}</h1>
+  <div class="acciones"><a class="boton secundario" href="{% url plantilla_url %}">Descargar plantilla Excel</a></div></div>
+<div class="tarjeta">
+  <ol>
+    <li>Descargue la plantilla y llene una fila por registro (la hoja "Instrucciones" explica cada columna).</li>
+    <li>Suba el archivo con <strong>Solo validar</strong> marcado para revisar errores y cálculos sin guardar nada.</li>
+    <li>Cuando todo esté correcto, desmarque <strong>Solo validar</strong> y súbalo de nuevo.</li>
+  </ol>
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% include "_form.html" %}
+    <button class="boton" type="submit">Procesar archivo</button>
+  </form>
+</div>
+{% if resultado %}
+<div class="tarjeta">
+  <h2>Resultado</h2>
+  {% if resultado.errores %}
+    <div class="mensaje error">Se encontraron {{ resultado.errores|length }} error(es) en {{ resultado.total_filas }} fila(s). <strong>No se importó nada.</strong></div>
+    <div class="tabla-contenedor"><table>
+      <thead><tr><th>Fila</th><th>Columna</th><th>Error</th></tr></thead>
+      <tbody>{% for e in resultado.errores %}<tr><td>{{ e.fila }}</td><td class="mono">{{ e.columna|default:"—" }}</td><td>{{ e.mensaje }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  {% elif resultado.total_filas == 0 %}
+    <div class="mensaje warning">El archivo no tiene filas.</div>
+  {% else %}
+    <div class="mensaje success">Las {{ resultado.total_filas }} fila(s) son válidas. Desmarque "Solo validar" y suba el archivo de nuevo para importarlas.</div>
+  {% endif %}
+  {% for aviso in resultado.avisos %}<div class="mensaje warning">{{ aviso }}</div>{% endfor %}
+  {% if resultado.vista_previa and not resultado.errores %}
+  <h3>Retención calculada</h3>
+  <div class="tabla-contenedor"><table>
+    <thead><tr><th>Fila</th><th>Proveedor</th><th>Fecha</th><th class="num">Monto</th><th class="num">Exención</th><th class="num">Tasa</th><th class="num">Retención</th><th class="num">Neto</th></tr></thead>
+    <tbody>{% for v in resultado.vista_previa %}<tr><td>{{ v.fila }}</td><td>{{ v.proveedor.nombre_mostrar }}</td><td>{{ v.fecha|date:"m/d/Y" }}</td>
+      <td class="num">${{ v.r.monto|floatformat:2|intcomma }}</td><td class="num">${{ v.r.exencion_aplicada|floatformat:2|intcomma }}</td>
+      <td class="num">{{ v.r.tasa|floatformat:2 }}%</td><td class="num">${{ v.r.retencion|floatformat:2|intcomma }}</td><td class="num">${{ v.r.neto|floatformat:2|intcomma }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+  {% if resultado.columnas_desconocidas %}<p class="texto-suave">Columnas ignoradas: {{ resultado.columnas_desconocidas|join:", " }}</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

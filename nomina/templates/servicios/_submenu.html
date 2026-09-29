@@ -1,0 +1,6 @@
+<div class="acciones submenu">
+  <a class="boton secundario{% if activo == 'proveedores' %} activo{% endif %}" href="{% url 'servicios:lista' %}">Proveedores</a>
+  <a class="boton secundario" href="{% url 'servicios:pagos' %}">Pagos</a>
+  <a class="boton secundario" href="{% url 'servicios:resumen' %}">Resumen anual</a>
+  {% if user.es_admin %}<a class="boton secundario" href="{% url 'servicios:config_lista' %}">Tasa y exención</a>{% endif %}
+</div>

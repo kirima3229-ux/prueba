@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Pagos por servicios{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'servicios:lista' %}">Servicios prestados</a></div>
+<div class="encabezado">
+  <h1>Pagos por servicios prestados — {{ anio }}</h1>
+  {% if user.puede_editar %}<div class="acciones">
+    <a class="boton" href="{% url 'servicios:pago_nuevo' %}">Registrar pago</a>
+    <a class="boton secundario" href="{% url 'servicios:importar_pagos' %}">Importar pagos</a>
+  </div>{% endif %}
+</div>
+{% include "servicios/_submenu.html" %}
+<form class="filtros" method="get">
+  <div class="campo"><label for="anio">Año</label><input class="buscar" id="anio" name="anio" type="number" min="2000" max="2100" value="{{ anio }}"></div>
+  <div class="campo"><label for="proveedor">Proveedor</label><select id="proveedor" name="proveedor"><option value="">Todos</option>
+    {% for p in proveedores %}<option value="{{ p.pk }}" {% if proveedor_id == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.numero }} — {{ p.nombre_mostrar }}</option>{% endfor %}</select></div>
+  <div class="campo"><label for="estado">Estado</label><select id="estado" name="estado">
+    <option value="registrado" {% if estado == "registrado" %}selected{% endif %}>Registrados</option>
+    <option value="anulado" {% if estado == "anulado" %}selected{% endif %}>Anulados</option>
+    <option value="todos" {% if estado == "todos" %}selected{% endif %}>Todos</option></select></div>
+  <button class="boton" type="submit">Filtrar</button>
+</form>
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Fecha</th><th>Proveedor</th><th>Factura</th><th>Método</th><th class="num">Monto</th><th class="num">Exención</th><th class="num">Tasa</th><th class="num">Retención</th><th class="num">Neto</th><th>Estado</th></tr></thead>
+  <tbody>
+  {% for p in pagina %}
+  <tr>
+    <td><a href="{% url 'servicios:pago_detalle' p.pk %}">{{ p.fecha|date:"m/d/Y" }}</a></td>
+    <td>{{ p.proveedor.nombre_mostrar }}</td>
+    <td>{{ p.referencia|default:"—" }}</td>
+    <td>{{ p.get_metodo_display }}{% if p.numero_cheque %} #{{ p.numero_cheque }}{% endif %}</td>
+    <td class="num">${{ p.monto|floatformat:2|intcomma }}</td>
+    <td class="num">${{ p.exencion_aplicada|floatformat:2|intcomma }}</td>
+    <td class="num">{{ p.tasa_aplicada|floatformat:2 }}%</td>
+    <td class="num">${{ p.retencion|floatformat:2|intcomma }}</td>
+    <td class="num">${{ p.neto|floatformat:2|intcomma }}</td>
+    <td>{% if p.estado == "anulado" %}<span class="etiqueta roja">Anulado</span>{% else %}<span class="etiqueta verde">Registrado</span>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="10" class="vacio">No hay pagos.</td></tr>
+  {% endfor %}
+  </tbody>
+  {% if totales.cantidad %}
+  <tfoot><tr><th colspan="4">Total registrados ({{ totales.cantidad }})</th><th class="num">${{ totales.monto|floatformat:2|intcomma }}</th><th></th><th></th><th class="num">${{ totales.retencion|floatformat:2|intcomma }}</th><th class="num">${{ totales.neto|floatformat:2|intcomma }}</th><th></th></tr></tfoot>
+  {% endif %}
+</table>
+</div>
+<div class="paginacion">
+  {% if pagina.has_previous %}<a class="boton pequeno secundario" href="?anio={{ anio }}&estado={{ estado }}&proveedor={{ proveedor_id }}&pagina={{ pagina.previous_page_number }}">Anterior</a>{% endif %}
+  <span>Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+  {% if pagina.has_next %}<a class="boton pequeno secundario" href="?anio={{ anio }}&estado={{ estado }}&proveedor={{ proveedor_id }}&pagina={{ pagina.next_page_number }}">Siguiente</a>{% endif %}
+</div>
+{% endblock %}

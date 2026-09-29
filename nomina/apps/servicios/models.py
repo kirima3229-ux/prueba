@@ -9,12 +9,17 @@ formularios se añaden en las fases 2 a 4. Aquí solo están los datos maestros.
 
 from datetime import date
 
+from decimal import Decimal
+
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from apps.companias.models import Compania
+from apps.companias.models import Compania, EstadoVerificacion
 from apps.core import cifrado
 from apps.core.campos import CampoCifrado
+
+from .calculo import Tratamiento
 
 
 class ProveedorServicios(models.Model):
@@ -30,6 +35,7 @@ class ProveedorServicios(models.Model):
         NINGUNO = "ninguno", "Sin relevo (retención completa)"
         PARCIAL = "parcial", "Relevo parcial"
         TOTAL = "total", "Relevo total"
+        DECLARACION_JURADA = "declaracion_jurada", "Exento — Sección 1062.03(b) (declaración jurada)"
 
     class TipoCuenta(models.TextChoices):
         CHEQUES = "cheques", "Cheques"
@@ -65,7 +71,7 @@ class ProveedorServicios(models.Model):
     fecha_inicio = models.DateField("fecha de inicio", null=True, blank=True)
 
     # Relevo de retención emitido por Hacienda.
-    relevo = models.CharField("relevo de retención", max_length=10, choices=Relevo.choices, default=Relevo.NINGUNO)
+    relevo = models.CharField("relevo de retención", max_length=20, choices=Relevo.choices, default=Relevo.NINGUNO)
     relevo_porcentaje = models.DecimalField(
         "porcentaje de retención con relevo parcial (%)",
         max_digits=5,
@@ -153,3 +159,141 @@ class ProveedorServicios(models.Model):
     @property
     def relevo_vencido(self) -> bool:
         return self.relevo != self.Relevo.NINGUNO and not self.relevo_vigente()
+
+    def tratamiento_en(self, fecha: date):
+        """Tratamiento de retención que corresponde a un pago en `fecha`."""
+        if not self.relevo_vigente(fecha):
+            return Tratamiento.GENERAL, None
+        return {
+            self.Relevo.PARCIAL: (Tratamiento.RELEVO_PARCIAL, self.relevo_porcentaje),
+            self.Relevo.TOTAL: (Tratamiento.RELEVO_TOTAL, None),
+            self.Relevo.DECLARACION_JURADA: (Tratamiento.DECLARACION_JURADA, None),
+        }[self.relevo]
+
+
+class ConfigRetencionServicios(models.Model):
+    """Tasa y exención de la retención por servicios prestados, por año natural."""
+
+    anio = models.PositiveSmallIntegerField(
+        "año", unique=True, validators=[MinValueValidator(2000), MaxValueValidator(2100)]
+    )
+    tasa_general = models.DecimalField(
+        "tasa de retención (%)", max_digits=5, decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    exencion_anual = models.DecimalField(
+        "exención anual por proveedor ($)", max_digits=10, decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text="Los primeros $ pagados en el año a cada proveedor no llevan retención.",
+    )
+    estado = models.CharField(
+        max_length=20, choices=EstadoVerificacion.choices, default=EstadoVerificacion.POR_VERIFICAR
+    )
+    verificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    verificado_en = models.DateTimeField(null=True, blank=True)
+    notas = models.TextField(blank=True)
+    modificada = models.DateTimeField(auto_now=True)
+
+    CAMPOS_NO_AUDITABLES = ("modificada",)
+
+    class Meta:
+        ordering = ["-anio"]
+        verbose_name = "configuración de retención por servicios prestados"
+
+    def __str__(self):
+        return f"Retención servicios prestados {self.anio}"
+
+
+class ErrorPagoInmutable(Exception):
+    pass
+
+
+class PagoServicio(models.Model):
+    """
+    Pago a un proveedor de servicios. Una vez registrado no se edita: si hay
+    un error se anula (con motivo) y se registra de nuevo. Los valores del
+    cálculo quedan guardados tal como se aplicaron.
+    """
+
+    class Metodo(models.TextChoices):
+        CHEQUE = "cheque", "Cheque"
+        DEPOSITO = "deposito", "Depósito directo"
+        TRANSFERENCIA = "transferencia", "Transferencia / ACH"
+        EFECTIVO = "efectivo", "Efectivo"
+        OTRO = "otro", "Otro"
+
+    class Origen(models.TextChoices):
+        MANUAL = "manual", "Registro manual"
+        IMPORTADO = "importado", "Importado de Excel/CSV"
+        NOMINA = "nomina", "Ciclo de nómina"
+
+    class Estado(models.TextChoices):
+        REGISTRADO = "registrado", "Registrado"
+        ANULADO = "anulado", "Anulado"
+
+    compania = models.ForeignKey(Compania, on_delete=models.PROTECT, related_name="pagos_servicios")
+    proveedor = models.ForeignKey(ProveedorServicios, on_delete=models.PROTECT, related_name="pagos")
+    fecha = models.DateField("fecha del pago")
+    anio = models.PositiveSmallIntegerField("año", db_index=True, editable=False)
+    referencia = models.CharField("factura / referencia", max_length=50, blank=True)
+    descripcion = models.CharField("descripción", max_length=200, blank=True)
+    metodo = models.CharField("método de pago", max_length=15, choices=Metodo.choices, default=Metodo.CHEQUE)
+    numero_cheque = models.CharField("número de cheque", max_length=30, blank=True)
+    origen = models.CharField(max_length=10, choices=Origen.choices, default=Origen.MANUAL)
+
+    # Resultado del cálculo (se guarda tal como se aplicó).
+    monto = models.DecimalField("monto bruto", max_digits=12, decimal_places=2)
+    acumulado_previo = models.DecimalField(max_digits=12, decimal_places=2)
+    exencion_aplicada = models.DecimalField(max_digits=12, decimal_places=2)
+    base_sujeta = models.DecimalField("cantidad sujeta", max_digits=12, decimal_places=2)
+    tasa_aplicada = models.DecimalField("tasa aplicada (%)", max_digits=5, decimal_places=2)
+    tratamiento = models.CharField(max_length=20, choices=Tratamiento.CHOICES)
+    retencion = models.DecimalField("retención", max_digits=12, decimal_places=2)
+    neto = models.DecimalField("neto pagado", max_digits=12, decimal_places=2)
+    explicacion = models.TextField()
+    motivo_exencion = models.CharField("motivo de la exención", max_length=200, blank=True)
+    config_verificada = models.BooleanField(default=False)
+
+    estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.REGISTRADO)
+    motivo_anulacion = models.CharField("motivo de la anulación", max_length=200, blank=True)
+    anulado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    anulado_en = models.DateTimeField(null=True, blank=True)
+
+    creado = models.DateTimeField(auto_now_add=True)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    CAMPOS_ANULACION = {"estado", "motivo_anulacion", "anulado_por", "anulado_en"}
+
+    class Meta:
+        ordering = ["-fecha", "-id"]
+        indexes = [models.Index(fields=["compania", "anio", "estado"]), models.Index(fields=["proveedor", "anio"])]
+        verbose_name = "pago por servicios prestados"
+        verbose_name_plural = "pagos por servicios prestados"
+
+    def __str__(self):
+        return f"Pago {self.pk} — {self.proveedor.nombre_mostrar} ${self.monto:,.2f} ({self.fecha:%m/%d/%Y})"
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            campos = set(kwargs.get("update_fields") or ())
+            if not campos or not campos <= self.CAMPOS_ANULACION:
+                raise ErrorPagoInmutable("Un pago registrado no se modifica; anúlelo y registre uno nuevo.")
+        self.anio = self.fecha.year
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ErrorPagoInmutable("Los pagos no se borran; se anulan.")
+
+
+def acumulado_del_anio(proveedor, anio: int) -> Decimal:
+    total = (
+        PagoServicio.objects.filter(proveedor=proveedor, anio=anio, estado=PagoServicio.Estado.REGISTRADO)
+        .aggregate(total=models.Sum("monto"))["total"]
+    )
+    return total or Decimal("0")
