@@ -148,6 +148,11 @@ class MesadaForm(forms.Form):
         help_text="El sistema calcula el salario base con su tarifa por hora.",
     )
     periodo_probatorio = forms.BooleanField(label="El despido ocurre durante el período probatorio", required=False)
+    pagar_enfermedad = forms.BooleanField(
+        label="Pagar también la licencia por enfermedad acumulada",
+        required=False,
+        help_text="No es lo usual; márquelo solo si la compañía la paga al terminar.",
+    )
 
     def __init__(self, *args, compania, **kwargs):
         super().__init__(*args, **kwargs)
@@ -197,7 +202,7 @@ def mesada(request):
             )
             liquidacion = liquidar(
                 mesada=resultado, horas_vacaciones=saldo(emp, "vacaciones"), horas_enfermedad=saldo(emp, "enfermedad"),
-                tarifa_hora=tarifa, texto_tarifa=texto_tarifa,
+                tarifa_hora=tarifa, texto_tarifa=texto_tarifa, pagar_enfermedad=d["pagar_enfermedad"],
             )
             if not p.verificado:
                 error = f"Las reglas de {p.anio} están POR VERIFICAR."

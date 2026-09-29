@@ -18,6 +18,7 @@
   <div class="rejilla">
     <div class="tarjeta"><div class="cifra">${{ m.monto|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Mesada</div></div>
     <div class="tarjeta"><div class="cifra">${{ liquidacion.pago_vacaciones|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Vacaciones acumuladas ({{ liquidacion.horas_vacaciones }} h)</div></div>
+    {% if liquidacion.pago_enfermedad %}<div class="tarjeta"><div class="cifra">${{ liquidacion.pago_enfermedad|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Enfermedad acumulada ({{ liquidacion.horas_enfermedad }} h)</div></div>{% endif %}
     <div class="tarjeta"><div class="cifra">${{ liquidacion.total|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Total a pagar</div></div>
   </div>
   <h3>Mesada</h3>
@@ -26,8 +27,9 @@
   <p>{{ m.explicacion|linebreaksbr }}</p>
   <h3>Vacaciones</h3>
   <p>{{ liquidacion.explicacion_vacaciones }}</p>
-  <p class="texto-suave">Balance de enfermedad: {{ liquidacion.horas_enfermedad }} h (informativo; no se incluye en el total).
-    Los balances salen de <a href="{% url 'licencias:empleado' empleado.pk %}">Vacaciones y enfermedad</a>; si no están al día, registre el saldo antes de calcular.</p>
+  <h3>Enfermedad</h3>
+  <p>Balance: {{ liquidacion.horas_enfermedad }} h. {{ liquidacion.explicacion_enfermedad }}</p>
+  <p class="texto-suave">Los balances salen de <a href="{% url 'licencias:empleado' empleado.pk %}">Vacaciones y enfermedad</a>; si no están al día, registre el saldo antes de calcular.</p>
   <p class="texto-suave">Salarios del último período y bono de Navidad, si corresponden, se pagan aparte en la nómina final (Fase 3).</p>
 </div>
 {% endwith %}

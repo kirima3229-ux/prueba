@@ -131,14 +131,26 @@ class Liquidacion:
     pago_vacaciones: Decimal
     explicacion_vacaciones: str
     horas_enfermedad: Decimal
+    pago_enfermedad: Decimal = CERO
+    explicacion_enfermedad: str = ""
 
     @property
     def total(self) -> Decimal:
-        return self.mesada.monto + self.pago_vacaciones
+        return self.mesada.monto + self.pago_vacaciones + self.pago_enfermedad
 
 
-def liquidar(*, mesada: ResultadoMesada, horas_vacaciones, horas_enfermedad, tarifa_hora, texto_tarifa) -> Liquidacion:
+def liquidar(*, mesada: ResultadoMesada, horas_vacaciones, horas_enfermedad, tarifa_hora, texto_tarifa,
+             pagar_enfermedad=False) -> Liquidacion:
+    """
+    Vacaciones acumuladas siempre se liquidan. La licencia por enfermedad no se
+    paga usualmente al terminar; solo se incluye si se pide (`pagar_enfermedad`).
+    """
     horas_vacaciones = max(CERO, Decimal(horas_vacaciones))
+    horas_enfermedad = max(CERO, Decimal(horas_enfermedad))
     pago = redondear(horas_vacaciones * Decimal(tarifa_hora))
     texto = f"{horas_vacaciones} h de vacaciones acumuladas × {texto_tarifa} = ${pago:,.2f}."
-    return Liquidacion(mesada, horas_vacaciones, pago, texto, Decimal(horas_enfermedad))
+    pago_enf, texto_enf = CERO, "No se incluye (no es lo usual al terminar el empleo)."
+    if pagar_enfermedad:
+        pago_enf = redondear(horas_enfermedad * Decimal(tarifa_hora))
+        texto_enf = f"{horas_enfermedad} h de enfermedad acumuladas × {texto_tarifa} = ${pago_enf:,.2f} (incluido a solicitud)."
+    return Liquidacion(mesada, horas_vacaciones, pago, texto, horas_enfermedad, pago_enf, texto_enf)

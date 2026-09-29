@@ -195,7 +195,8 @@ antes de Ley 4-2017, hasta 5 años 2 meses + 1 semana por año, de 5 a 15 años 
 Semana = salario mensual × 12 ÷ 52. No aplica en el período probatorio. Reglas editables por año (POR VERIFICAR).
 La pantalla calcula la **liquidación**: mesada + vacaciones acumuladas (balance del empleado × su tarifa por hora,
 nunca menos del salario mínimo). Para empleados por hora, el salario base se puede calcular con las horas regulares
-de los 30 días de más horas × la tarifa. El balance de enfermedad se muestra como información.
+de los 30 días de más horas × la tarifa. La licencia por enfermedad no se paga por defecto (no es lo usual); hay una
+opción para incluirla cuando la compañía la paga.
 
 Pendiente en la Fase 2: retención federal (W-4). Pendiente en la Fase 4: archivo
 trimestral de servicios prestados (en espera del formato).

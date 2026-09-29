@@ -159,3 +159,24 @@ def test_asalariado_necesita_salario_base(cliente_preparador, compania):
     assert "horas_30_dias" in respuesta.context["form"].errors
     respuesta = cliente_preparador.post(reverse("calculo:mesada"), {"empleado": emp.pk, "fecha_despido": "2026-09-30"})
     assert "salario_mensual" in respuesta.context["form"].errors
+
+
+def test_enfermedad_solo_si_se_pide():
+    m = mesada("ley4", date(2024, 9, 1))  # 10,200
+    normal = liquidar(mesada=m, horas_vacaciones=D("40"), horas_enfermedad=D("24"), tarifa_hora=D("15"), texto_tarifa="$15")
+    assert normal.pago_enfermedad == D("0") and normal.total == D("10800.00")
+    assert "no es lo usual" in normal.explicacion_enfermedad
+    con = liquidar(mesada=m, horas_vacaciones=D("40"), horas_enfermedad=D("24"), tarifa_hora=D("15"), texto_tarifa="$15",
+                   pagar_enfermedad=True)
+    assert con.pago_enfermedad == D("360.00") and con.total == D("11160.00")
+
+
+@pytest.mark.django_db
+def test_pantalla_opcion_pagar_enfermedad(cliente_preparador, compania, preparador):
+    emp = crear_empleado(compania, fecha_empleo=date(2024, 9, 1), tarifa="15")
+    MovimientoLicencia.objects.create(empleado=emp, tipo="enfermedad", clase="saldo_inicial", horas=D("24"),
+                                      fecha=date(2026, 1, 1), creado_por=preparador)
+    datos = {"empleado": emp.pk, "fecha_despido": "2026-09-30", "salario_mensual": "2600"}
+    assert cliente_preparador.post(reverse("calculo:mesada"), datos).context["liquidacion"].pago_enfermedad == D("0")
+    liq = cliente_preparador.post(reverse("calculo:mesada"), {**datos, "pagar_enfermedad": "on"}).context["liquidacion"]
+    assert liq.pago_enfermedad == D("360.00") and liq.total == liq.mesada.monto + D("360.00")
