@@ -31,6 +31,8 @@ class Accion(models.TextChoices):
     EMPLEADO_MODIFICADO = "empleado_modificado", "Empleado modificado"
     EMPLEADO_TERMINADO = "empleado_terminado", "Empleado terminado"
     EMPLEADOS_IMPORTADOS = "empleados_importados", "Empleados importados"
+    PROVEEDOR_CREADO = "proveedor_creado", "Proveedor de servicios creado"
+    PROVEEDOR_MODIFICADO = "proveedor_modificado", "Proveedor de servicios modificado"
     CONFIGURACION_MODIFICADA = "configuracion_modificada", "Configuración modificada"
     NOMINA_PROCESADA = "nomina_procesada", "Nómina procesada"
     NOMINA_REVERSADA = "nomina_reversada", "Nómina reversada"

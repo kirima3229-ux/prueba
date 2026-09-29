@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.utils import timezone
 
 from apps.auditoria.models import RegistroAuditoria
 from apps.companias.models import EstadoVerificacion
@@ -14,6 +15,10 @@ def inicio(request):
             inactivos=empleados.filter(activo=False).count(),
             tasas_pendientes=compania.tasas.filter(estado=EstadoVerificacion.POR_VERIFICAR),
             departamentos=compania.departamentos.count(),
+            proveedores=compania.proveedores_servicios.filter(activo=True).count(),
+            relevos_vencidos=compania.proveedores_servicios.filter(
+                activo=True, relevo_vigente_hasta__lt=timezone.localdate()
+            ).exclude(relevo="ninguno"),
         )
     if request.user.es_admin:
         contexto["actividad"] = RegistroAuditoria.objects.all()[:10]

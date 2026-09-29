@@ -6,9 +6,15 @@
 <div class="rejilla">
   <div class="tarjeta"><div class="cifra">{{ activos }}</div><div class="cifra-etiqueta">Empleados activos</div></div>
   <div class="tarjeta"><div class="cifra">{{ inactivos }}</div><div class="cifra-etiqueta">Empleados inactivos</div></div>
-  <div class="tarjeta"><div class="cifra">{{ departamentos }}</div><div class="cifra-etiqueta">Departamentos</div></div>
+  <div class="tarjeta"><div class="cifra">{{ proveedores }}</div><div class="cifra-etiqueta">Proveedores de servicios activos</div></div>
   <div class="tarjeta"><div class="cifra">{{ compania_activa.get_frecuencia_pago_display }}</div><div class="cifra-etiqueta">Frecuencia de pago</div></div>
 </div>
+{% if relevos_vencidos %}
+<div class="mensaje warning">
+  Certificados de relevo vencidos:
+  {% for p in relevos_vencidos %}<a href="{% url 'servicios:detalle' p.pk %}">{{ p.nombre_mostrar }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.
+</div>
+{% endif %}
 {% if tasas_pendientes %}
 <div class="mensaje warning">
   Hay tasas marcadas <strong>POR VERIFICAR</strong>:
@@ -23,6 +29,7 @@
     {% if user.puede_editar %}
     <a class="boton secundario" href="{% url 'empleados:nuevo' %}">Nuevo empleado</a>
     <a class="boton secundario" href="{% url 'empleados:importar' %}">Importar empleados</a>
+    <a class="boton secundario" href="{% url 'servicios:nuevo' %}">Nuevo proveedor de servicios</a>
     {% endif %}
     <a class="boton secundario" href="{% url 'companias:detalle' compania_activa.pk %}">Datos de la compañía</a>
   </div>

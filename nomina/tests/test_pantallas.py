@@ -18,9 +18,15 @@ def datos(compania, admin):
         sinot_empleado_tasa="0.3", sinot_patrono_tasa="0.3",
     )
     empleado = crear_empleado(compania, departamento=depto, clasificacion_cfse=cfse)
+    from datetime import date
+
+    from .test_servicios import crear_proveedor
+
+    proveedor = crear_proveedor(compania, relevo="parcial", relevo_porcentaje="5.00", relevo_vigente_hasta=date(2020, 1, 1))
+    entidad = crear_proveedor(compania, numero="P-2", tipo="ein", identificacion="661234567", tipo_persona="entidad", nombre="ACME LLC", apellido_paterno="")
     inactivo = crear_empleado(compania, numero="101", ssn="234567890", activo=False)
     registrar(accion=Accion.LOGIN, usuario=admin, descripcion="prueba", cambios={"campo": {"antes": 1, "despues": 2}})
-    return {"compania": compania, "depto": depto, "cfse": cfse, "tasas": tasas, "empleado": empleado, "inactivo": inactivo}
+    return {"compania": compania, "depto": depto, "cfse": cfse, "tasas": tasas, "empleado": empleado, "inactivo": inactivo, "proveedor": proveedor, "entidad": entidad}
 
 
 def _pantallas(d, admin):
@@ -43,6 +49,12 @@ def _pantallas(d, admin):
         reverse("empleados:editar", args=[e.pk]),
         reverse("empleados:terminar", args=[e.pk]),
         reverse("empleados:importar"),
+        reverse("servicios:lista"),
+        reverse("servicios:lista") + "?estado=todos&q=Luis",
+        reverse("servicios:nuevo"),
+        reverse("servicios:detalle", args=[d["proveedor"].pk]),
+        reverse("servicios:detalle", args=[d["entidad"].pk]),
+        reverse("servicios:editar", args=[d["proveedor"].pk]),
     ], [
         reverse("cuentas:usuarios"),
         reverse("cuentas:usuario_nuevo"),

@@ -1,0 +1,29 @@
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Núm.</th><th>Nombre</th><th>Tipo</th><th>Identificación</th><th>Servicio</th><th>Relevo</th><th>Estado</th></tr></thead>
+  <tbody>
+  {% for p in pagina %}
+  <tr>
+    <td>{{ p.numero }}</td>
+    <td><a href="{% url 'servicios:detalle' p.pk %}">{{ p.nombre_mostrar }}</a></td>
+    <td>{{ p.get_tipo_persona_display }}</td>
+    <td class="mono">{{ p.get_tipo_identificacion_display }} {{ p.identificacion_enmascarada }}</td>
+    <td>{{ p.descripcion_servicio|default:"—" }}</td>
+    <td>{% if p.relevo == "ninguno" %}<span class="etiqueta gris">Sin relevo</span>{% elif p.relevo_vencido %}<span class="etiqueta roja">Vencido</span>{% else %}<span class="etiqueta verde">{{ p.get_relevo_display }}</span>{% endif %}</td>
+    <td>{% if p.activo %}<span class="etiqueta verde">Activo</span>{% else %}<span class="etiqueta gris">Inactivo</span>{% endif %}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="7" class="vacio">No hay proveedores de servicios que coincidan.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if pagina.paginator.num_pages > 1 %}
+<div class="paginacion">
+  {% if pagina.has_previous %}<a class="boton pequeno secundario" href="?q={{ q|urlencode }}&estado={{ estado }}&pagina={{ pagina.previous_page_number }}">Anterior</a>{% endif %}
+  <span>Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} ({{ pagina.paginator.count }} proveedores)</span>
+  {% if pagina.has_next %}<a class="boton pequeno secundario" href="?q={{ q|urlencode }}&estado={{ estado }}&pagina={{ pagina.next_page_number }}">Siguiente</a>{% endif %}
+</div>
+{% else %}
+<p class="texto-suave">{{ pagina.paginator.count }} proveedor(es).</p>
+{% endif %}

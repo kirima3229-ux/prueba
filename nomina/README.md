@@ -4,7 +4,7 @@ Sistema de nómina para Puerto Rico, multi-compañía, construido con Django + P
 
 | Fase | Contenido | Estado |
 |---|---|---|
-| 1 | Estructura, entrada y seguridad, roles, compañías, empleados, bitácora | **Completada** |
+| 1 | Estructura, entrada y seguridad, roles, compañías, empleados, proveedores de servicios prestados, bitácora | **Completada** |
 | 2 | Configuración de tasas y tablas por año, motor de cálculo con pruebas | Pendiente |
 | 3 | Flujo de nómina, talonarios, reportes | Pendiente |
 | 4 | Archivos de Hacienda, DTRH, IRS y CFSE | Pendiente |
@@ -106,7 +106,11 @@ python manage.py shell -c "from django_otp.plugins.otp_totp.models import TOTPDe
 4. **Usuarios** → crear preparadores y asignarles compañías. Reciben una contraseña temporal que deben cambiar al entrar.
 5. **Empleados** → crear uno por uno o **Importar Excel/CSV** (descargue la plantilla). La importación es
    "todo o nada": si una fila tiene error no se importa ninguna, y se muestra la fila, la columna y el motivo.
-6. El selector de la barra superior cambia la compañía activa sin volver a entrar.
+6. **Servicios prestados** → proveedores que no son empleados (individuos con SSN o entidades con EIN, ambos
+   cifrados), con el certificado de relevo de retención de Hacienda (total o parcial, con porcentaje y fecha de
+   vencimiento). El inicio avisa cuando un relevo está vencido. El registro de pagos, la retención (tasa
+   configurable por año) y la declaración informativa de servicios prestados se añaden en las fases 2 a 4.
+7. El selector de la barra superior cambia la compañía activa sin volver a entrar.
 
 ### Régimen laboral (Ley 4-2017)
 
@@ -126,6 +130,7 @@ nomina/
   apps/cuentas/      usuarios, roles, entrada con 2FA, administración de usuarios
   apps/companias/    compañías, tasas por año, departamentos, clasificaciones CFSE
   apps/empleados/    empleados, importación Excel/CSV
+  apps/servicios/    proveedores de servicios prestados (contratistas)
   templates/, static/  interfaz (HTMX servido localmente, sin CDN)
   tests/             pruebas automatizadas (pytest)
 ```

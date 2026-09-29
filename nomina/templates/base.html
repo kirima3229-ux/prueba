@@ -7,6 +7,7 @@
   <nav class="menu">
     <a href="{% url 'inicio' %}" class="{% if request.resolver_match.url_name == 'inicio' %}activo{% endif %}">Inicio</a>
     <a href="{% url 'empleados:lista' %}" class="{% if ruta == 'empleados' %}activo{% endif %}">Empleados</a>
+    <a href="{% url 'servicios:lista' %}" class="{% if ruta == 'servicios' %}activo{% endif %}">Servicios prestados</a>
     <a href="{% url 'companias:lista' %}" class="{% if ruta == 'companias' %}activo{% endif %}">Compañías</a>
     {% if user.es_admin %}
       <a href="{% url 'cuentas:usuarios' %}" class="{% if ruta == 'cuentas' and 'usuario' in request.resolver_match.url_name %}activo{% endif %}">Usuarios</a>

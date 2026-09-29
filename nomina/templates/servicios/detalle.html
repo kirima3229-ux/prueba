@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titulo %}{{ proveedor.nombre_mostrar }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'servicios:lista' %}">Servicios prestados</a></div>
+<div class="encabezado">
+  <h1>{{ proveedor.nombre_mostrar }} {% if proveedor.activo %}<span class="etiqueta verde">Activo</span>{% else %}<span class="etiqueta gris">Inactivo</span>{% endif %}</h1>
+  {% if user.puede_editar %}
+  <div class="acciones">
+    <a class="boton" href="{% url 'servicios:editar' proveedor.pk %}">Editar</a>
+    <form class="en-linea" method="post" action="{% url 'servicios:cambiar_estado' proveedor.pk %}" data-confirmar="¿{% if proveedor.activo %}Desactivar{% else %}Reactivar{% endif %} a {{ proveedor.nombre_mostrar }}?">{% csrf_token %}<button class="boton secundario" type="submit">{% if proveedor.activo %}Desactivar{% else %}Reactivar{% endif %}</button></form>
+  </div>
+  {% endif %}
+</div>
+{% if proveedor.relevo_vencido %}
+<div class="mensaje warning">El certificado de relevo venció el {{ proveedor.relevo_vigente_hasta|date:"m/d/Y" }}. Mientras no se renueve, a los pagos se les retendrá la tasa completa.</div>
+{% endif %}
+<div class="rejilla ancha">
+  <div class="tarjeta"><h2>Identificación</h2><dl class="datos">
+    <dt>Número</dt><dd>{{ proveedor.numero }}</dd>
+    <dt>Tipo</dt><dd>{{ proveedor.get_tipo_persona_display }}</dd>
+    {% if proveedor.tipo_persona == "entidad" %}<dt>Razón social</dt><dd>{{ proveedor.nombre }}</dd>{% endif %}
+    <dt>{{ proveedor.get_tipo_identificacion_display }}</dt><dd class="mono">{{ proveedor.identificacion_enmascarada }}</dd>
+    <dt>Dirección</dt><dd>{{ proveedor.direccion_linea1|default:"—" }} {{ proveedor.direccion_linea2 }}<br>{{ proveedor.ciudad }} {{ proveedor.estado }} {{ proveedor.codigo_postal }}</dd>
+    <dt>Teléfono</dt><dd>{{ proveedor.telefono|default:"—" }}</dd>
+    <dt>Email</dt><dd>{{ proveedor.email|default:"—" }}</dd>
+  </dl></div>
+  <div class="tarjeta"><h2>Servicio y retención</h2><dl class="datos">
+    <dt>Servicio</dt><dd>{{ proveedor.descripcion_servicio|default:"—" }}</dd>
+    <dt>Desde</dt><dd>{{ proveedor.fecha_inicio|date:"m/d/Y"|default:"—" }}</dd>
+    <dt>Relevo</dt><dd>{{ proveedor.get_relevo_display }}{% if proveedor.relevo == "parcial" %} — retención de {{ proveedor.relevo_porcentaje }}%{% endif %}</dd>
+    {% if proveedor.relevo != "ninguno" %}
+    <dt>Certificado</dt><dd>{{ proveedor.relevo_numero|default:"—" }}, vigente hasta {{ proveedor.relevo_vigente_hasta|date:"m/d/Y" }}</dd>
+    {% endif %}
+    <dt>Depósito directo</dt><dd>{% if proveedor.deposito_directo %}{{ proveedor.banco_nombre }} · ruta {{ proveedor.banco_ruta }} · cuenta <span class="mono">{{ proveedor.cuenta_enmascarada }}</span> ({{ proveedor.get_banco_tipo_cuenta_display }}){% else %}No{% endif %}</dd>
+  </dl>
+  <p class="texto-suave">El registro de pagos, la retención y la declaración informativa se añaden en las próximas fases.</p></div>
+</div>
+{% if proveedor.notas %}<div class="tarjeta"><h2>Notas</h2><p>{{ proveedor.notas|linebreaksbr }}</p></div>{% endif %}
+<div class="tarjeta"><h2>Historial de cambios</h2>{% include "_historial.html" %}</div>
+{% endblock %}
