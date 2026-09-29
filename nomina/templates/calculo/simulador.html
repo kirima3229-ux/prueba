@@ -2,7 +2,8 @@
 {% load humanize %}
 {% block titulo %}Simulador de nómina{% endblock %}
 {% block contenido %}
-<div class="encabezado"><h1>Simulador de nómina — {{ compania_activa }}</h1></div>
+<div class="encabezado"><h1>Simulador de nómina — {{ compania_activa }}</h1>
+  <div class="acciones"><a class="boton secundario" href="{% url 'calculo:mesada' %}">Calculadora de mesada</a></div></div>
 <p class="texto-suave">Calcula un período para un empleado <strong>sin guardar nada</strong>. Úselo para comparar el motor con casos reales conocidos. Frecuencia de pago de la compañía: {{ compania_activa.get_frecuencia_pago_display|lower }}.</p>
 <form method="post" novalidate>
   {% csrf_token %}

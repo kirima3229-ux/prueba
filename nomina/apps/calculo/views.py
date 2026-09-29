@@ -129,3 +129,47 @@ def simulador(request):
         "calculo/simulador.html",
         {"form": form, "resultado": resultado, "error": error, **contexto_calculo},
     )
+
+
+# --- Calculadora de mesada (Ley 80) --------------------------------------------------
+
+
+class MesadaForm(forms.Form):
+    empleado = forms.ModelChoiceField(label="Empleado", queryset=Empleado.objects.none())
+    fecha_despido = forms.DateField(label="Fecha de despido", widget=FechaInput())
+    salario_mensual = forms.DecimalField(
+        label="Salario mensual base ($)", min_value=Decimal("0.01"), max_digits=12, decimal_places=2,
+        help_text="Antes de Ley 4-2017: el salario más alto de los últimos 3 años. Ley 4-2017: el de los 30 días "
+        "consecutivos con más horas regulares del último año.",
+    )
+    periodo_probatorio = forms.BooleanField(label="El despido ocurre durante el período probatorio", required=False)
+
+    def __init__(self, *args, compania, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["empleado"].queryset = Empleado.objects.filter(compania=compania)
+
+
+@requiere_compania
+def mesada(request):
+    from .mesada import calcular_mesada
+
+    inicial = {"fecha_despido": timezone.localdate()}
+    if request.GET.get("empleado", "").isdigit():
+        inicial["empleado"] = int(request.GET["empleado"])
+    form = MesadaForm(request.POST or None, initial=inicial, compania=request.compania)
+    resultado, error, emp = None, None, None
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        emp = d["empleado"]
+        try:
+            p = cargar.parametros_anio(d["fecha_despido"].year)
+            resultado = calcular_mesada(
+                regimen=emp.regimen_efectivo, fecha_empleo=emp.fecha_empleo, fecha_despido=d["fecha_despido"],
+                salario_mensual=d["salario_mensual"], reglas=cargar.reglas_mesada(p),
+                periodo_probatorio=d["periodo_probatorio"],
+            )
+            if not p.verificado:
+                error = f"Las reglas de {p.anio} están POR VERIFICAR."
+        except cargar.ConfiguracionFaltante as e:
+            error = str(e)
+    return render(request, "calculo/mesada.html", {"form": form, "resultado": resultado, "error": error, "empleado": emp})

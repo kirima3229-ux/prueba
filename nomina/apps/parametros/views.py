@@ -14,6 +14,7 @@ from .forms import (
     ConceptoIngresoForm,
     CopiarAnioForm,
     LicenciasFormSet,
+    MesadaFormSet,
     ParametrosForm,
     ReglasFormSet,
     SalarioMinimoForm,
@@ -54,6 +55,7 @@ def _foto_parametros(p):
         f"salario tope {r.tope_salario or '—'}; período desde mes {r.mes_inicio_periodo}"
         for r in p.reglas_bono.all()
     ]
+    foto["mesada"] = [str(r) for r in p.reglas_mesada.all()]
     return foto
 
 
@@ -62,8 +64,9 @@ FORMSETS = (
     ("reglas", ReglasFormSet),
     ("licencias", LicenciasFormSet),
     ("bono", BonoFormSet),
+    ("mesada", MesadaFormSet),
 )
-RELACIONES_COPIABLES = ("tramos", "reglas_horas_extra", "reglas_licencia", "reglas_bono")
+RELACIONES_COPIABLES = ("tramos", "reglas_horas_extra", "reglas_licencia", "reglas_bono", "reglas_mesada")
 
 
 @requiere_admin

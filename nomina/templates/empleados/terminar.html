@@ -6,7 +6,7 @@
 <form method="post" class="tarjeta" novalidate>
   {% csrf_token %}
   {% include "_form.html" %}
-  <p class="texto-suave">El empleado queda inactivo; su historial se conserva. La calculadora de mesada (Ley 80) se añade en la Fase 2.</p>
+  <p class="texto-suave">El empleado queda inactivo; su historial se conserva. <a href="{% url 'calculo:mesada' %}?empleado={{ empleado.pk }}">Calcular la mesada (Ley 80)</a>.</p>
   <div class="acciones">
     <button class="boton peligro" type="submit">Terminar empleo</button>
     <a class="boton secundario" href="{% url 'empleados:detalle' empleado.pk %}">Cancelar</a>

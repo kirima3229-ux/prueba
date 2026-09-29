@@ -44,6 +44,15 @@
         <td>{{ f.umbral_empleados }}</td><td>{{ f.porcentaje_grande }}</td><td>{{ f.tope_grande }}</td><td>{{ f.porcentaje_pequeno }}</td><td>{{ f.tope_pequeno }}</td><td>{{ f.tope_salario }}{{ f.errors }}</td></tr>{% endfor %}</tbody></table></div>
   </fieldset>
 
+  <fieldset><legend>Mesada (Ley 80)</legend>
+    {{ mesada.management_form }}
+    {% if mesada.non_form_errors %}<div class="mensaje error">{{ mesada.non_form_errors }}</div>{% endif %}
+    <div class="tabla-contenedor"><table class="tabla-form"><thead><tr><th>Régimen</th><th>Años desde</th><th>Años hasta</th><th>Meses de sueldo</th><th>Semanas por año</th><th>Tope (meses)</th><th>Borrar</th></tr></thead>
+      <tbody>{% for f in mesada %}<tr>{% for campo in f.hidden_fields %}{{ campo }}{% endfor %}
+        <td>{{ f.regimen }}</td><td>{{ f.anios_desde }}</td><td>{{ f.anios_hasta }}</td><td>{{ f.meses_sueldo }}</td>
+        <td>{{ f.semanas_por_anio }}</td><td>{{ f.tope_meses }}{{ f.errors }}</td><td>{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+  </fieldset>
+
   <fieldset><legend>Confirmación</legend>
     {% include "_campo.html" with campo=form.notas %}
     {% include "_campo.html" with campo=form.marcar_verificado %}

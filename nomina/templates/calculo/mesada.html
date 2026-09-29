@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block titulo %}Calculadora de mesada{% endblock %}
+{% block contenido %}
+<div class="encabezado"><h1>Calculadora de mesada (Ley 80) — {{ compania_activa }}</h1></div>
+<p class="texto-suave">Referencia para despidos sin justa causa. No guarda nada. Las reglas por régimen y antigüedad están en Configuración → año.</p>
+<form method="post" class="tarjeta" novalidate>
+  {% csrf_token %}
+  {% include "_form.html" %}
+  <button class="boton" type="submit">Calcular</button>
+</form>
+{% if error %}<div class="mensaje {% if resultado %}warning{% else %}error{% endif %}">{{ error }}</div>{% endif %}
+{% if resultado %}
+<div class="tarjeta">
+  <h2>{{ empleado.nombre_completo }} — {{ empleado.get_regimen_efectivo_display }}</h2>
+  <p class="texto-suave">Empleado desde {{ empleado.fecha_empleo|date:"m/d/Y" }}.</p>
+  {% if resultado.aplica %}<div class="cifra">${{ resultado.monto|floatformat:2 }}</div>{% else %}<div class="mensaje info">No aplica mesada.</div>{% endif %}
+  <p>{{ resultado.explicacion|linebreaksbr }}</p>
+  <p class="texto-suave">Además de la mesada, al terminar se liquidan las vacaciones acumuladas y, si corresponde, la parte del bono de Navidad.</p>
+</div>
+{% endif %}
+{% endblock %}

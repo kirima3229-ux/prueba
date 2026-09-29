@@ -262,3 +262,33 @@ class ReglaBonoNavidad(models.Model):
 
     def __str__(self):
         return f"Bono {self.get_regimen_display()} {self.parametros.anio}"
+
+
+class ReglaMesada(models.Model):
+    """Indemnización por despido sin justa causa (Ley 80-1976, enmendada por Ley 128-2005 y Ley 4-2017)."""
+
+    parametros = models.ForeignKey(ParametrosAnuales, on_delete=models.CASCADE, related_name="reglas_mesada")
+    regimen = models.CharField(max_length=10, choices=REGIMENES)
+    anios_desde = models.DecimalField("años de servicio desde", max_digits=5, decimal_places=2, default=0)
+    anios_hasta = models.DecimalField(
+        "años de servicio hasta", max_digits=5, decimal_places=2, null=True, blank=True,
+        help_text="Vacío = en adelante.",
+    )
+    meses_sueldo = models.DecimalField("meses de sueldo", max_digits=5, decimal_places=2)
+    semanas_por_anio = models.DecimalField("semanas por cada año de servicio", max_digits=5, decimal_places=2)
+    tope_meses = models.DecimalField(
+        "tope total (meses de sueldo)", max_digits=5, decimal_places=2, null=True, blank=True,
+        help_text="Vacío = sin tope.",
+    )
+
+    class Meta:
+        ordering = ["regimen", "anios_desde"]
+        verbose_name = "regla de mesada"
+
+    def __str__(self):
+        hasta = f"{self.anios_hasta}" if self.anios_hasta is not None else "∞"
+        tope = f", tope {self.tope_meses} meses" if self.tope_meses is not None else ""
+        return (
+            f"Mesada {self.get_regimen_display()} {self.anios_desde}–{hasta} años: {self.meses_sueldo} meses + "
+            f"{self.semanas_por_anio} semanas/año{tope}"
+        )

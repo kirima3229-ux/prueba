@@ -10,6 +10,7 @@ from .models import (
     ReglaBonoNavidad,
     ReglaHorasExtra,
     ReglaLicencia,
+    ReglaMesada,
     SalarioMinimo,
     TramoRetencionPR,
 )
@@ -64,6 +65,11 @@ ReglasFormSet = inlineformset_factory(
 LicenciasFormSet = inlineformset_factory(
     ParametrosAnuales, ReglaLicencia,
     fields=["tipo", "regimen", "tamano", "anios_desde", "anios_hasta", "horas_minimas_mes", "dias_por_mes"],
+    extra=1, can_delete=True,
+)
+MesadaFormSet = inlineformset_factory(
+    ParametrosAnuales, ReglaMesada,
+    fields=["regimen", "anios_desde", "anios_hasta", "meses_sueldo", "semanas_por_anio", "tope_meses"],
     extra=1, can_delete=True,
 )
 BonoFormSet = inlineformset_factory(

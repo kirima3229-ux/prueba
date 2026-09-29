@@ -60,6 +60,8 @@ def _datos_anio(p):
     for prefijo, filas, campos in (
         ("licencias", list(p.reglas_licencia.all()),
          ("tipo", "regimen", "tamano", "anios_desde", "anios_hasta", "horas_minimas_mes", "dias_por_mes")),
+        ("mesada", list(p.reglas_mesada.all()),
+         ("regimen", "anios_desde", "anios_hasta", "meses_sueldo", "semanas_por_anio", "tope_meses")),
         ("bono", list(p.reglas_bono.all()),
          ("regimen", "mes_inicio_periodo", "horas_minimas", "umbral_empleados", "porcentaje_grande", "tope_grande",
           "porcentaje_pequeno", "tope_pequeno", "tope_salario")),

@@ -84,6 +84,8 @@ def _pantallas(d, admin):
         reverse("servicios:deposito_detalle", args=[d["deposito"].pk]),
         reverse("calculo:simulador"),
         reverse("calculo:simulador") + "?empleado=" + str(e.pk),
+        reverse("calculo:mesada"),
+        reverse("calculo:mesada") + "?empleado=" + str(e.pk),
         reverse("licencias:balances"),
         reverse("licencias:balances") + "?formato=xlsx",
         reverse("licencias:acumular"),

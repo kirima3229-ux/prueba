@@ -142,3 +142,12 @@ def regla_bono(p: ParametrosAnuales, regimen: str):
         r.regimen, r.mes_inicio_periodo, r.horas_minimas, r.umbral_empleados, r.porcentaje_grande, r.tope_grande,
         r.porcentaje_pequeno, r.tope_pequeno, r.tope_salario,
     )
+
+
+def reglas_mesada(p: ParametrosAnuales) -> list:
+    from . import mesada
+
+    return [
+        mesada.ReglaMesada(r.regimen, r.anios_desde, r.anios_hasta, r.meses_sueldo, r.semanas_por_anio, r.tope_meses)
+        for r in p.reglas_mesada.all()
+    ]
