@@ -238,6 +238,17 @@ def tarifa_por_hora(emp: Empleado) -> Decimal | None:
     return None
 
 
+def credito_por_propinas(emp: Empleado, parametros: Parametros) -> Decimal:
+    """
+    Crédito por propinas por hora: diferencia entre el salario mínimo y la tarifa
+    en efectivo de un empleado con propinas. Cero si no aplica.
+    """
+    minimo = parametros.salario_minimo
+    if not emp.recibe_propinas or emp.tipo_pago != "hora" or minimo is None:
+        return CERO
+    return max(CERO, minimo - Decimal(emp.tarifa))
+
+
 def impuesto_por_tabla(ingreso_anual: Decimal, tramos) -> tuple[Decimal, str]:
     if ingreso_anual <= 0:
         return CERO, "Ingreso anual sujeto $0.00: sin retención."
@@ -316,17 +327,30 @@ def calcular(
             regla = parametros.horas_extra.get(empleado.regimen)
             if regla is None:
                 raise ErrorCalculo(f"No hay multiplicadores de horas extra para el régimen '{empleado.regimen}'.")
+            regimen_txt = "antes de Ley 4-2017" if empleado.regimen == "anterior" else "Ley 4-2017"
+            credito = credito_por_propinas(empleado, parametros)
             for campo, cantidad, nombre in extras:
                 if not cantidad:
                     continue
                 factor = getattr(regla, campo)
-                monto = redondear(Decimal(cantidad) * tarifa_hora * factor)
+                if credito:
+                    # Empleado con propinas (Opinión del Secretario del DTRH 2024-01): la hora extra
+                    # se calcula sobre el salario mínimo completo y se resta el mismo crédito por
+                    # propinas que en las horas regulares.
+                    tarifa_extra = factor * parametros.salario_minimo - credito
+                    detalle = (
+                        f"{factor} × {dinero(parametros.salario_minimo)} (salario mínimo) − crédito por propinas "
+                        f"{dinero(credito)} = {dinero(redondear(tarifa_extra))} por hora"
+                    )
+                else:
+                    tarifa_extra = tarifa_hora * factor
+                    detalle = f"{dinero(redondear(tarifa_hora))} × {factor}"
+                monto = redondear(Decimal(cantidad) * tarifa_extra)
                 ingresos.append(
                     Monto(
                         concepto("horas_extra", "Horas extra"),
                         monto,
-                        f"{cantidad} h ({nombre}) × {dinero(redondear(tarifa_hora))} × {factor} "
-                        f"[{'antes de Ley 4-2017' if empleado.regimen == 'anterior' else 'Ley 4-2017'}] = {dinero(monto)}",
+                        f"{cantidad} h ({nombre}) × {detalle} [{regimen_txt}] = {dinero(monto)}",
                     )
                 )
 
@@ -503,17 +527,18 @@ def calcular(
                     f"La tarifa por hora {dinero(redondear(tarifa_hora))} está por debajo del mínimo en efectivo "
                     f"para empleados con propinas ({dinero(p.salario_minimo_propinas)})."
                 )
+            # Las propinas deben cubrir el crédito tomado en cada hora trabajada
+            # (regulares y extra); si no, el patrono completa la diferencia.
             horas_trabajadas = Decimal(horas.regulares) + sum(Decimal(h) for _, h, _ in extras)
-            if horas_trabajadas > 0:
-                efectivo = sum((m.monto for m in ingresos if m.concepto.codigo in ("regular", "horas_extra")), CERO)
-                propinas = sum((m.monto for m in ingresos if m.concepto.codigo == "propinas"), CERO)
-                exigido = redondear(horas_trabajadas * p.salario_minimo)
-                faltante = exigido - redondear(efectivo + propinas)
-                if faltante > 0:
-                    r.alertas.append(
-                        f"Salario + propinas ({dinero(efectivo + propinas)}) no alcanzan el salario mínimo por "
-                        f"{horas_trabajadas} horas ({dinero(exigido)}): el patrono debe completar {dinero(faltante)}."
-                    )
+            credito_total = redondear(horas_trabajadas * credito_por_propinas(empleado, p))
+            propinas = sum((m.monto for m in ingresos if m.concepto.codigo == "propinas"), CERO)
+            faltante = credito_total - redondear(propinas)
+            if horas_trabajadas > 0 and faltante > 0:
+                r.alertas.append(
+                    f"Las propinas ({dinero(propinas)}) no cubren el crédito por propinas tomado "
+                    f"({horas_trabajadas} h × {dinero(credito_por_propinas(empleado, p))} = {dinero(credito_total)}): "
+                    f"el patrono debe completar {dinero(faltante)} para llegar al salario mínimo."
+                )
     if r.neto < 0:
         r.alertas.append(f"El neto a pagar es negativo ({dinero(r.neto)}): revise las deducciones.")
     if not p.verificado:

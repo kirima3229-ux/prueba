@@ -143,8 +143,10 @@ la ficha lo indica con la etiqueta "Asignado manualmente".
   *Crear año copiando* prepara el año siguiente a partir del anterior.
 - **Salario mínimo** con fecha de vigencia ($9.50 desde 7/1/2023 y $10.50 desde 7/1/2024) y, opcional, el mínimo
   en efectivo para **empleados con propinas** (meseros). A estos empleados se les puede pagar menos del mínimo, pero
-  sus **vacaciones y licencias por enfermedad se pagan al salario mínimo**; el sistema avisa si tarifa + propinas no
-  alcanzan el mínimo por las horas trabajadas y cuánto debe completar el patrono.
+  sus **vacaciones y licencias por enfermedad se pagan al salario mínimo**. Según la Opinión del Secretario del DTRH
+  2024-01 (Ley 47-2021): mínimo en efectivo **$2.13** (crédito máximo = salario mínimo − $2.13), y las **horas extra**
+  se calculan sobre el salario mínimo completo menos el mismo crédito (1.5 × $10.50 − $8.37 = $7.38). El sistema avisa
+  si las propinas no cubren el crédito tomado y cuánto debe completar el patrono.
 - **Conceptos de ingreso** (a qué contribuciones está sujeto cada uno) y **de deducción** (antes o después de la
   retención de PR, federal y Seguro Social/Medicare/desempleo).
 - **Tasas CFSE** por clasificación y año, en la ficha de la compañía.

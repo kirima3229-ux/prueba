@@ -261,3 +261,31 @@ def test_asalariado_licencias_incluidas_en_el_salario():
     r = calc(emp, Horas(vacaciones=D("8")))
     assert r.bruto == D("800.00") and r.monto("vacaciones") == D("0")
     assert any("incluidas en el salario" in a for a in r.alertas)
+
+
+@pytest.mark.parametrize(
+    "tarifa,regimen,esperado",
+    [
+        # Opinión del Secretario DTRH 2024-01: 1.5 × $10.50 − $8.37 = $7.38 por hora extra
+        (D("2.13"), "ley4", D("22.14")),   # 3 h × 7.38
+        (D("4"), "ley4", D("27.75")),      # 3 h × (15.75 − 6.50)
+        (D("2.13"), "anterior", D("37.89")),  # 3 h × (2 × 10.50 − 8.37) = 3 × 12.63
+    ],
+)
+def test_horas_extra_de_meseros_sobre_el_salario_minimo(tarifa, regimen, esperado):
+    emp = motor.Empleado(regimen=regimen, tipo_pago="hora", tarifa=tarifa, recibe_propinas=True)
+    r = calc(emp, Horas(regulares=D("40"), extra_semanales=D("3")), otros_ingresos=[Monto(PROPINAS, D("600"))])
+    assert r.monto("horas_extra") == esperado
+    linea = next(l for l in r.ingresos if l.codigo == "horas_extra")
+    assert "crédito por propinas" in linea.explicacion
+
+
+def test_credito_por_propinas_incluye_horas_extra():
+    emp = motor.Empleado(regimen="ley4", tipo_pago="hora", tarifa=D("2.13"), recibe_propinas=True)
+    # 43 h × $8.37 = $359.91 de crédito; propinas $300 → faltan $59.91
+    r = calc(emp, Horas(regulares=D("40"), extra_semanales=D("3")), otros_ingresos=[Monto(PROPINAS, D("300"))])
+    assert any("debe completar $59.91" in a for a in r.alertas)
+
+
+def test_empleado_sin_propinas_horas_extra_a_su_tarifa():
+    assert calc(horas=Horas(regulares=D("40"), extra_semanales=D("2"))).monto("horas_extra") == D("36.00")
