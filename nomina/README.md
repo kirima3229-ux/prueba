@@ -193,6 +193,9 @@ En la Fase 3 las horas y los salarios vendrán solos de la nómina procesada.
 antes de Ley 4-2017, hasta 5 años 2 meses + 1 semana por año, de 5 a 15 años 3 meses + 2 semanas por año, más de
 15 años 6 meses + 3 semanas por año, sin tope; Ley 4-2017, 3 meses + 2 semanas por año hasta un máximo de 9 meses.
 Semana = salario mensual × 12 ÷ 52. No aplica en el período probatorio. Reglas editables por año (POR VERIFICAR).
+La pantalla calcula la **liquidación**: mesada + vacaciones acumuladas (balance del empleado × su tarifa por hora,
+nunca menos del salario mínimo). Para empleados por hora, el salario base se puede calcular con las horas regulares
+de los 30 días de más horas × la tarifa. El balance de enfermedad se muestra como información.
 
 Pendiente en la Fase 2: retención federal (W-4). Pendiente en la Fase 4: archivo
 trimestral de servicios prestados (en espera del formato).

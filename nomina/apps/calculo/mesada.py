@@ -89,3 +89,56 @@ def calcular_mesada(
     total = redondear(total)
     lineas.append(f"Mesada: ${total:,.2f}.")
     return ResultadoMesada(True, total, anios, completos, "\n".join(lineas))
+
+
+# --- Liquidación por terminación ------------------------------------------------------
+
+HORAS_ANUALES_JORNADA_COMPLETA = Decimal("2080")  # 52 semanas × 40 horas
+
+
+def salario_base_por_horas(tarifa_hora, horas_30_dias) -> Decimal:
+    """Ley 4-2017: salario de los 30 días consecutivos con más horas regulares del último año."""
+    return redondear(Decimal(tarifa_hora) * Decimal(horas_30_dias))
+
+
+def tarifa_para_liquidacion(*, tipo_pago, tarifa, horas_regulares_periodo, salario_mensual, salario_minimo=None):
+    """
+    Tarifa por hora para pagar el balance de vacaciones:
+    - por hora: su tarifa;
+    - asalariado: salario del período ÷ horas del período, o si no hay horas,
+      salario mensual × 12 ÷ 2,080;
+    nunca por debajo del salario mínimo (empleados con propinas).
+    Devuelve (tarifa, explicación).
+    """
+    if tipo_pago == "hora":
+        valor, texto = Decimal(tarifa), f"su tarifa de ${Decimal(tarifa):,.2f} por hora"
+    elif horas_regulares_periodo:
+        valor = Decimal(tarifa) / Decimal(horas_regulares_periodo)
+        texto = f"${Decimal(tarifa):,.2f} ÷ {horas_regulares_periodo} h del período = ${redondear(valor):,.2f} por hora"
+    else:
+        valor = Decimal(salario_mensual) * 12 / HORAS_ANUALES_JORNADA_COMPLETA
+        texto = f"${Decimal(salario_mensual):,.2f} × 12 ÷ 2,080 h = ${redondear(valor):,.2f} por hora"
+    if salario_minimo is not None and valor < Decimal(salario_minimo):
+        valor = Decimal(salario_minimo)
+        texto += f"; se paga al salario mínimo de ${valor:,.2f}"
+    return valor, texto
+
+
+@dataclass(frozen=True)
+class Liquidacion:
+    mesada: ResultadoMesada
+    horas_vacaciones: Decimal
+    pago_vacaciones: Decimal
+    explicacion_vacaciones: str
+    horas_enfermedad: Decimal
+
+    @property
+    def total(self) -> Decimal:
+        return self.mesada.monto + self.pago_vacaciones
+
+
+def liquidar(*, mesada: ResultadoMesada, horas_vacaciones, horas_enfermedad, tarifa_hora, texto_tarifa) -> Liquidacion:
+    horas_vacaciones = max(CERO, Decimal(horas_vacaciones))
+    pago = redondear(horas_vacaciones * Decimal(tarifa_hora))
+    texto = f"{horas_vacaciones} h de vacaciones acumuladas × {texto_tarifa} = ${pago:,.2f}."
+    return Liquidacion(mesada, horas_vacaciones, pago, texto, Decimal(horas_enfermedad))

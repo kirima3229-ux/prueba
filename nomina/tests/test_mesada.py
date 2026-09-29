@@ -6,7 +6,14 @@ from decimal import Decimal as D
 import pytest
 from django.urls import reverse
 
-from apps.calculo.mesada import ReglaMesada, calcular_mesada
+from apps.calculo.mesada import (
+    ReglaMesada,
+    calcular_mesada,
+    liquidar,
+    salario_base_por_horas,
+    tarifa_para_liquidacion,
+)
+from apps.licencias.models import MovimientoLicencia
 from apps.parametros.models import ParametrosAnuales
 
 from .conftest import crear_empleado
@@ -86,7 +93,7 @@ def test_pantalla_de_mesada(cliente_preparador, compania):
     emp = crear_empleado(compania, fecha_empleo=date(2016, 5, 16))  # régimen anterior
     respuesta = cliente_preparador.post(reverse("calculo:mesada"), {
         "empleado": emp.pk, "fecha_despido": "2026-09-30", "salario_mensual": "2600"})
-    r = respuesta.context["resultado"]
+    r = respuesta.context["liquidacion"].mesada
     assert r.monto == D("19800.00")
     html = respuesta.content.decode()
     assert "19,800.00" in html or "19800.00" in html
@@ -98,4 +105,57 @@ def test_mesada_empleado_de_otra_compania(cliente_preparador, compania, otra_com
     ajeno = crear_empleado(otra_compania, numero="9", ssn="345678901")
     respuesta = cliente_preparador.post(reverse("calculo:mesada"), {
         "empleado": ajeno.pk, "fecha_despido": "2026-09-30", "salario_mensual": "2600"})
-    assert respuesta.context["resultado"] is None and "empleado" in respuesta.context["form"].errors
+    assert respuesta.context["liquidacion"] is None and "empleado" in respuesta.context["form"].errors
+
+
+# --- Liquidación ------------------------------------------------------------------
+
+
+def test_salario_base_por_horas():
+    assert salario_base_por_horas(D("12.50"), D("176")) == D("2200.00")
+
+
+def test_tarifa_para_liquidacion():
+    assert tarifa_para_liquidacion(tipo_pago="hora", tarifa=D("12"), horas_regulares_periodo=None,
+                                   salario_mensual=D("2000"))[0] == D("12")
+    assert tarifa_para_liquidacion(tipo_pago="salario", tarifa=D("800"), horas_regulares_periodo=D("40"),
+                                   salario_mensual=D("3466.67"))[0] == D("20")
+    tarifa, texto = tarifa_para_liquidacion(tipo_pago="exento", tarifa=D("3000"), horas_regulares_periodo=None,
+                                            salario_mensual=D("5200"))
+    assert tarifa == D("30") and "2,080" in texto  # 5,200 × 12 ÷ 2,080
+    # Mesero a $4: las vacaciones se liquidan al salario mínimo.
+    tarifa, texto = tarifa_para_liquidacion(tipo_pago="hora", tarifa=D("4"), horas_regulares_periodo=None,
+                                            salario_mensual=D("700"), salario_minimo=D("10.50"))
+    assert tarifa == D("10.50") and "salario mínimo" in texto
+
+
+def test_liquidar_suma_mesada_y_vacaciones():
+    m = mesada("ley4", date(2024, 9, 1))  # 10,200
+    liq = liquidar(mesada=m, horas_vacaciones=D("40"), horas_enfermedad=D("24"), tarifa_hora=D("15"), texto_tarifa="$15")
+    assert liq.pago_vacaciones == D("600.00") and liq.total == D("10800.00")
+    assert liq.horas_enfermedad == D("24")
+
+
+@pytest.mark.django_db
+def test_pantalla_liquidacion_empleado_por_hora(cliente_preparador, compania, preparador):
+    emp = crear_empleado(compania, fecha_empleo=date(2024, 9, 1), tarifa="15")  # Ley 4, por hora
+    MovimientoLicencia.objects.create(empleado=emp, tipo="vacaciones", clase="saldo_inicial", horas=D("40"),
+                                      fecha=date(2026, 1, 1), creado_por=preparador)
+    respuesta = cliente_preparador.post(reverse("calculo:mesada"), {
+        "empleado": emp.pk, "fecha_despido": "2026-09-30", "horas_30_dias": "173.33"})
+    liq = respuesta.context["liquidacion"]
+    # Base: 173.33 × 15 = 2,599.95; semanal 599.99; 3 meses 7,799.85 + 4 semanas 2,399.95 = 10,199.80
+    assert liq.mesada.monto == D("10199.80")
+    assert liq.pago_vacaciones == D("600.00")  # 40 h × $15
+    assert liq.total == D("10799.80")
+    assert "173.33 h × $15.00" in respuesta.content.decode()
+
+
+@pytest.mark.django_db
+def test_asalariado_necesita_salario_base(cliente_preparador, compania):
+    emp = crear_empleado(compania, tipo_pago="salario", tarifa="800")
+    respuesta = cliente_preparador.post(reverse("calculo:mesada"), {
+        "empleado": emp.pk, "fecha_despido": "2026-09-30", "horas_30_dias": "160"})
+    assert "horas_30_dias" in respuesta.context["form"].errors
+    respuesta = cliente_preparador.post(reverse("calculo:mesada"), {"empleado": emp.pk, "fecha_despido": "2026-09-30"})
+    assert "salario_mensual" in respuesta.context["form"].errors
