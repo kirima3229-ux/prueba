@@ -54,7 +54,8 @@
 <div class="tarjeta"><h2>Vacaciones y enfermedad</h2>
   <p><a class="boton secundario" href="{% url 'licencias:empleado' empleado.pk %}">Ver balances y movimientos</a>
      <a class="boton secundario" href="{% url 'calculo:simulador' %}?empleado={{ empleado.pk }}">Simular nómina</a>
-     <a class="boton secundario" href="{% url 'calculo:mesada' %}?empleado={{ empleado.pk }}">Calcular mesada</a></p>
+     <a class="boton secundario" href="{% url 'calculo:mesada' %}?empleado={{ empleado.pk }}">Calcular mesada</a>
+     <a class="boton secundario" href="{% url 'nomina:deducciones_empleado' empleado.pk %}">Deducciones recurrentes</a></p>
 </div>
 <div class="tarjeta"><h2>Historial de cambios</h2>{% include "_historial.html" %}</div>
 {% endblock %}

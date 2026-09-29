@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}{{ entrada.empleado.nombre_completo }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a> › <a href="{% url 'nomina:detalle' periodo.pk %}">{{ periodo.fecha_inicio|date:"m/d/Y" }} – {{ periodo.fecha_fin|date:"m/d/Y" }}</a></div>
+<div class="encabezado"><h1>{{ entrada.empleado.nombre_completo }}</h1>
+  <div class="acciones"><a class="boton secundario" href="{% url 'nomina:deducciones_empleado' entrada.empleado.pk %}">Deducciones recurrentes</a></div></div>
+<div class="rejilla ancha">
+  <form method="post" class="tarjeta" novalidate>
+    {% csrf_token %}<input type="hidden" name="accion" value="horas">
+    <h2>Horas</h2>
+    {% include "_form.html" %}
+    {% if puede %}<button class="boton" type="submit">Guardar horas</button>{% endif %}
+  </form>
+  <div class="tarjeta">
+    <h2>Otros ingresos</h2>
+    <table><tbody>{% for i in entrada.ingresos.all %}<tr><td>{{ i.concepto }}{% if i.descripcion %} — {{ i.descripcion }}{% endif %}</td><td class="num">${{ i.monto|floatformat:2|intcomma }}</td>
+      <td>{% if puede %}<form class="en-linea" method="post">{% csrf_token %}<input type="hidden" name="accion" value="borrar_ingreso"><input type="hidden" name="id" value="{{ i.pk }}"><button class="boton pequeno secundario" type="submit">Quitar</button></form>{% endif %}</td></tr>
+      {% empty %}<tr><td class="vacio">Sin otros ingresos.</td></tr>{% endfor %}</tbody></table>
+    {% if puede %}<form method="post" class="filtros" novalidate>{% csrf_token %}<input type="hidden" name="accion" value="ingreso">
+      {% for campo in form_ingreso %}{% include "_campo.html" %}{% endfor %}<button class="boton pequeno" type="submit">Añadir</button></form>{% endif %}
+    <h2>Deducciones</h2>
+    <table><tbody>{% for d in entrada.deducciones.all %}<tr><td>{{ d.concepto }}{% if d.recurrente %} <small class="texto-suave">(recurrente)</small>{% endif %}{% if d.descripcion %} — {{ d.descripcion }}{% endif %}</td><td class="num">${{ d.monto|floatformat:2|intcomma }}</td>
+      <td>{% if puede %}<form class="en-linea" method="post">{% csrf_token %}<input type="hidden" name="accion" value="borrar_deduccion"><input type="hidden" name="id" value="{{ d.pk }}"><button class="boton pequeno secundario" type="submit">Quitar</button></form>{% endif %}</td></tr>
+      {% empty %}<tr><td class="vacio">Sin deducciones.</td></tr>{% endfor %}</tbody></table>
+    {% if puede %}<form method="post" class="filtros" novalidate>{% csrf_token %}<input type="hidden" name="accion" value="deduccion">
+      {% for campo in form_deduccion %}{% include "_campo.html" %}{% endfor %}<button class="boton pequeno" type="submit">Añadir</button></form>{% endif %}
+  </div>
+</div>
+{% if resultado %}
+<div class="tarjeta">
+  <h2>Cálculo {% if periodo.requiere_recalculo %}<span class="etiqueta amarilla">desactualizado</span>{% endif %}</h2>
+  {% for a in resultado.alertas %}<div class="mensaje warning">{{ a }}</div>{% endfor %}
+  <table><tbody>
+  {% for l in resultado.lineas.all %}
+    <tr><td>{{ l.get_grupo_display }}</td><td>{{ l.nombre }}<div class="texto-suave explicacion">{{ l.explicacion }}</div></td><td class="num">${{ l.monto|floatformat:2|intcomma }}</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr><th colspan="2">Neto a pagar</th><th class="num">${{ resultado.neto|floatformat:2|intcomma }}</th></tr></tfoot>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

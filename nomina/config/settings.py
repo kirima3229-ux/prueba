@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "apps.parametros",
     "apps.calculo",
     "apps.licencias",
+    "apps.nomina",
 ]
 
 MIDDLEWARE = [

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block titulo %}Nuevo período{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a></div>
+<div class="encabezado"><h1>Nuevo período de nómina</h1></div>
+<form method="post" class="tarjeta" novalidate>
+  {% csrf_token %}
+  <p class="texto-suave">Las fechas sugeridas siguen al último período según la frecuencia de pago de la compañía. Se incluyen los empleados activos (y los que terminaron dentro del período), con sus deducciones recurrentes.</p>
+  {% include "_form.html" %}
+  <div class="acciones"><button class="boton" type="submit">Crear período</button><a class="boton secundario" href="{% url 'nomina:lista' %}">Cancelar</a></div>
+</form>
+{% endblock %}

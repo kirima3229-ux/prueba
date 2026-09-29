@@ -38,7 +38,13 @@ def datos(compania, admin):
     deposito = depositos.registrar(compania=compania, desde=date(2000, 1, 1), hasta=date.today(),
                                    fecha_deposito=date.today(), confirmacion="X", usuario=admin)
     registrar(accion=Accion.LOGIN, usuario=admin, descripcion="prueba", cambios={"campo": {"antes": 1, "despues": 2}})
-    return {"compania": compania, "depto": depto, "cfse": cfse, "tasas": tasas, "empleado": empleado, "inactivo": inactivo, "proveedor": proveedor, "entidad": entidad, "pago": pago, "anulado": anulado, "deposito": deposito}
+    from apps.nomina import servicios as nomina
+
+    periodo = nomina.crear_periodo(compania=compania, inicio=date(2026, 9, 7), fin=date(2026, 9, 13),
+                                   fecha_pago=date(2026, 9, 18), usuario=admin)
+    periodo.entradas.filter(empleado=empleado).update(horas_regulares=40)
+    nomina.calcular_periodo(periodo, usuario=admin)
+    return {"periodo": periodo, "compania": compania, "depto": depto, "cfse": cfse, "tasas": tasas, "empleado": empleado, "inactivo": inactivo, "proveedor": proveedor, "entidad": entidad, "pago": pago, "anulado": anulado, "deposito": deposito}
 
 
 def _pantallas(d, admin):
@@ -93,6 +99,13 @@ def _pantallas(d, admin):
         reverse("licencias:empleado", args=[e.pk]),
         reverse("licencias:bono"),
         reverse("licencias:bono") + "?anio=2026",
+        reverse("nomina:lista"),
+        reverse("nomina:nuevo"),
+        reverse("nomina:detalle", args=[d["periodo"].pk]),
+        reverse("nomina:entrada", args=[d["periodo"].pk, d["periodo"].entradas.get(empleado=e).pk]),
+        reverse("nomina:talonarios", args=[d["periodo"].pk]),
+        reverse("nomina:registro", args=[d["periodo"].pk]),
+        reverse("nomina:deducciones_empleado", args=[e.pk]),
     ], [
         reverse("parametros:inicio"),
         reverse("parametros:anio", args=[2026]),

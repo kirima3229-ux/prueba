@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titulo %}Deducciones recurrentes{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'empleados:detalle' empleado.pk %}">{{ empleado.nombre_completo }}</a></div>
+<div class="encabezado"><h1>Deducciones recurrentes — {{ empleado.nombre_completo }}</h1></div>
+<p class="texto-suave">Se añaden solas a cada nómina regular nueva mientras estén vigentes. Para una deducción de un solo período, añádala en la nómina.</p>
+<div class="tarjeta"><table>
+  <thead><tr><th>Concepto</th><th class="num">Monto por período</th><th>Vigencia</th><th>Notas</th><th>Estado</th><th></th></tr></thead>
+  <tbody>{% for d in deducciones %}<tr><td>{{ d.concepto }}</td><td class="num">${{ d.monto|floatformat:2 }}</td>
+    <td>{{ d.desde|date:"m/d/Y"|default:"—" }} – {{ d.hasta|date:"m/d/Y"|default:"sin fin" }}</td><td>{{ d.notas }}</td>
+    <td>{% if d.activo %}<span class="etiqueta verde">Activa</span>{% else %}<span class="etiqueta gris">Inactiva</span>{% endif %}</td>
+    <td>{% if d.activo and user.puede_editar %}<form class="en-linea" method="post">{% csrf_token %}<input type="hidden" name="accion" value="desactivar"><input type="hidden" name="id" value="{{ d.pk }}"><button class="boton pequeno secundario" type="submit">Desactivar</button></form>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6" class="vacio">Sin deducciones recurrentes.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% if user.puede_editar %}
+<form method="post" class="tarjeta" novalidate>{% csrf_token %}<input type="hidden" name="accion" value="nueva">
+  <h2>Nueva deducción recurrente</h2>{% include "_form.html" %}<button class="boton" type="submit">Añadir</button></form>
+{% endif %}
+{% endblock %}

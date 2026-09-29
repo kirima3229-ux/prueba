@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Nómina {{ periodo.fecha_pago|date:"m/d/Y" }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a></div>
+<div class="encabezado">
+  <h1>{{ periodo.fecha_inicio|date:"m/d/Y" }} – {{ periodo.fecha_fin|date:"m/d/Y" }} · pago {{ periodo.fecha_pago|date:"m/d/Y" }} {% include "nomina/_estado.html" with p=periodo %}</h1>
+  <div class="acciones">
+    {% if resultados %}
+      <a class="boton secundario" href="{% url 'nomina:talonarios' periodo.pk %}" target="_blank">Talonarios PDF</a>
+      <a class="boton secundario" href="{% url 'nomina:registro' periodo.pk %}">Registro Excel</a>
+    {% endif %}
+    {% if periodo.editable and user.puede_editar %}
+      <form class="en-linea" method="post" action="{% url 'nomina:calcular' periodo.pk %}">{% csrf_token %}<button class="boton secundario" type="submit">Calcular pre-nómina</button></form>
+      {% if periodo.estado == "calculada" and not periodo.requiere_recalculo and not periodo.errores %}
+      <form class="en-linea" method="post" action="{% url 'nomina:cerrar' periodo.pk %}" data-confirmar="¿Aprobar y cerrar esta nómina? Después no se puede modificar; solo reversar.">{% csrf_token %}<button class="boton" type="submit">Aprobar y cerrar</button></form>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% if periodo.descripcion %}<p>{{ periodo.descripcion }}</p>{% endif %}
+{% if periodo.tipo == "reverso" %}<div class="mensaje info">Reverso de <a href="{% url 'nomina:detalle' periodo.reverso_de.pk %}">{{ periodo.reverso_de }}</a>. Motivo: {{ periodo.motivo_reverso }}</div>{% endif %}
+{% if periodo.estado == "reversada" %}<div class="mensaje error">Esta nómina fue reversada ({{ periodo.motivo_reverso }}). <a href="{% url 'nomina:detalle' periodo.reverso.pk %}">Ver el reverso</a>.</div>{% endif %}
+{% if periodo.requiere_recalculo and periodo.estado == "calculada" %}<div class="mensaje warning">Hubo cambios después del último cálculo: calcule de nuevo antes de aprobar.</div>{% endif %}
+{% for e in periodo.errores %}<div class="mensaje error">{{ e }}</div>{% endfor %}
+{% for e in errores %}<div class="mensaje error">{{ e }}</div>{% endfor %}
+{% if periodo.estado == "calculada" and periodo.parametros_usados.verificado == "False" %}<div class="mensaje warning">Se calculó con parámetros POR VERIFICAR.</div>{% endif %}
+
+{% if periodo.tipo != "reverso" %}
+<form method="post" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="accion" value="guardar">
+  <h2>Horas e ingresos</h2>
+  <div class="tabla-contenedor">
+  <table class="tabla-form tabla-nomina">
+    <thead><tr><th>Incl.</th><th>Empleado</th>{% for c in columnas_horas %}<th class="num">{{ c }}</th>{% endfor %}{% for c in columnas_rapidas %}<th class="num">{{ c|capfirst }} $</th>{% endfor %}<th>Otros</th></tr></thead>
+    <tbody>
+    {% for f in filas %}{% with e=f.entrada %}
+    <tr>
+      <td><input type="checkbox" name="incluir_{{ e.pk }}" {% if e.incluir %}checked{% endif %} {% if not periodo.editable %}disabled{% endif %}></td>
+      <td><a href="{% url 'nomina:entrada' periodo.pk e.pk %}">{{ e.empleado.nombre_completo }}</a><br><small class="texto-suave">{{ e.empleado.get_tipo_pago_display }} · ${{ e.empleado.tarifa|floatformat:2 }}</small></td>
+      {% for campo, valor in f.horas %}<td><input name="{{ campo }}_{{ e.pk }}" value="{% if valor %}{{ valor|floatformat:"-2" }}{% endif %}" inputmode="decimal" {% if not periodo.editable %}disabled{% endif %}></td>{% endfor %}
+      {% for codigo, valor in f.rapidos %}<td>{% if valor is None %}<small class="texto-suave">varios</small>{% else %}<input name="{{ codigo }}_{{ e.pk }}" value="{% if valor %}{{ valor }}{% endif %}" inputmode="decimal" {% if not periodo.editable %}disabled{% endif %}>{% endif %}</td>{% endfor %}
+      <td><small>{% if f.otros %}{{ f.otros }} ingreso(s)<br>{% endif %}{% if f.deducciones %}Ded. ${{ f.deducciones|floatformat:2 }}{% endif %}</small></td>
+    </tr>
+    {% endwith %}{% empty %}<tr><td colspan="13" class="vacio">No hay empleados en el período.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if periodo.editable and user.puede_editar %}<div class="acciones"><button class="boton" type="submit">Guardar horas e ingresos</button></div>{% endif %}
+  <p class="texto-suave">Los asalariados cobran su salario del período sin entrar horas regulares. Para otros ingresos (reembolsos, misceláneos) y deducciones de un solo período, abra el nombre del empleado.</p>
+</form>
+{% endif %}
+
+{% if resultados %}
+<h2>{% if periodo.cerrado %}Resultados{% else %}Pre-nómina{% endif %}</h2>
+{% if con_alertas %}<div class="mensaje warning">{{ con_alertas }} empleado(s) con alertas: revíselas antes de aprobar.</div>{% endif %}
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Empleado</th><th class="num">Horas</th><th class="num">Bruto</th><th class="num">Retenciones</th><th class="num">Deducciones</th><th class="num">Neto</th><th class="num">Patronal</th><th>Alertas</th></tr></thead>
+  <tbody>
+  {% for r in resultados %}
+  <tr>
+    <td>{{ r.empleado_nombre }} <a class="texto-suave" href="{% url 'nomina:talonarios' periodo.pk %}?empleado={{ r.empleado_id }}" target="_blank">talonario</a></td>
+    <td class="num">{{ r.horas_trabajadas|floatformat:2 }}</td>
+    <td class="num">${{ r.bruto|floatformat:2|intcomma }}</td>
+    <td class="num">${{ r.total_retenciones|floatformat:2|intcomma }}</td>
+    <td class="num">${{ r.total_deducciones|floatformat:2|intcomma }}</td>
+    <td class="num"><strong>${{ r.neto|floatformat:2|intcomma }}</strong></td>
+    <td class="num">${{ r.total_patronal|floatformat:2|intcomma }}</td>
+    <td>{% for a in r.alertas %}<div class="texto-suave explicacion">⚠ {{ a }}</div>{% endfor %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr><th>Total</th><th></th><th class="num">${{ totales.bruto|floatformat:2|intcomma }}</th><th class="num">${{ totales.retenciones|floatformat:2|intcomma }}</th><th class="num">${{ totales.deducciones|floatformat:2|intcomma }}</th><th class="num">${{ totales.neto|floatformat:2|intcomma }}</th><th class="num">${{ totales.patronal|floatformat:2|intcomma }}</th><th></th></tr></tfoot>
+</table>
+</div>
+{% endif %}
+
+{% if periodo.estado == "cerrada" and periodo.tipo != "reverso" and user.es_admin %}
+<form method="post" action="{% url 'nomina:reversar' periodo.pk %}" class="tarjeta" data-confirmar="¿Reversar esta nómina? Se crea un reverso con todos los montos en negativo.">
+  {% csrf_token %}
+  <h2>Reversar nómina</h2>
+  <p class="texto-suave">Crea un período de reverso con los mismos montos en negativo (los acumulados del año quedan netos) y devuelve las horas de licencia. Después procese una nómina nueva con los datos correctos.</p>
+  <div class="campo"><label for="motivo">Motivo *</label><input class="buscar" id="motivo" name="motivo" required maxlength="300"></div>
+  <button class="boton peligro" type="submit">Reversar</button>
+</form>
+{% endif %}
+<div class="tarjeta"><h2>Historial</h2>{% include "_historial.html" %}</div>
+{% endblock %}

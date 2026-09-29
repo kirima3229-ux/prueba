@@ -201,3 +201,5 @@ table.tabla-form input, table.tabla-form select { width: 100%; padding: 0.35rem 
 .explicacion { font-size: 0.8rem; }
 .menu a { font-size: 0.93rem; padding: 0.4rem 0.5rem; }
 @media (max-width: 1400px) { .marca small { display: none; } .usuario-menu { font-size: 0.85rem; } }
+.tabla-nomina input[type=checkbox] { width: auto; }
+.tabla-nomina td input { min-width: 4.2rem; text-align: right; }

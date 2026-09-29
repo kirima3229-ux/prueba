@@ -1,0 +1,390 @@
+from decimal import Decimal, InvalidOperation
+
+from django import forms
+from django.contrib import messages
+from django.db import transaction
+from django.db.models import Count, Sum
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
+
+from apps.auditoria.models import RegistroAuditoria
+from apps.auditoria.servicios import Accion, registrar
+from apps.calculo import cargar
+from apps.core import hojas
+from apps.core.permisos import requiere_admin, requiere_compania, requiere_edicion
+from apps.empleados.forms import FechaInput
+from apps.empleados.models import Empleado
+from apps.parametros.models import ConceptoDeduccion, ConceptoIngreso
+
+from . import servicios, talonario
+from .models import (
+    DeduccionRecurrente,
+    EntradaDeduccion,
+    EntradaIngreso,
+    EntradaNomina,
+    ErrorNominaCerrada,
+    PeriodoNomina,
+)
+
+# Columnas de ingresos que se pueden entrar directamente en la tabla del período.
+INGRESOS_RAPIDOS = ("propinas", "comisiones", "bono")
+CAMPOS_HORAS = [
+    ("horas_regulares", "Reg."),
+    ("horas_extra_diarias", "HE diarias"),
+    ("horas_extra_semanales", "HE sem."),
+    ("horas_septimo_dia", "7º día"),
+    ("horas_periodo_alimentos", "Alim."),
+    ("horas_vacaciones", "Vac."),
+    ("horas_enfermedad", "Enf."),
+]
+
+
+def _periodo(request, pk):
+    return get_object_or_404(PeriodoNomina, pk=pk, compania=request.compania)
+
+
+def _decimal(texto):
+    texto = (texto or "").strip().replace(",", "").replace("$", "")
+    if texto == "":
+        return Decimal("0")
+    valor = Decimal(texto)
+    if valor < 0:
+        raise InvalidOperation
+    return valor
+
+
+@requiere_compania
+def lista(request):
+    periodos = (
+        PeriodoNomina.objects.filter(compania=request.compania)
+        .annotate(empleados=Count("resultados"), bruto=Sum("resultados__bruto"), neto=Sum("resultados__neto"))
+    )
+    return render(request, "nomina/lista.html", {"periodos": periodos[:100]})
+
+
+class PeriodoForm(forms.Form):
+    fecha_inicio = forms.DateField(label="Desde", widget=FechaInput())
+    fecha_fin = forms.DateField(label="Hasta", widget=FechaInput())
+    fecha_pago = forms.DateField(label="Fecha de pago", widget=FechaInput())
+    tipo = forms.ChoiceField(choices=[(PeriodoNomina.Tipo.REGULAR, "Regular"), (PeriodoNomina.Tipo.ESPECIAL, "Especial")])
+    descripcion = forms.CharField(label="Descripción", max_length=200, required=False)
+
+    def clean(self):
+        d = super().clean()
+        if d.get("fecha_inicio") and d.get("fecha_fin") and d["fecha_fin"] < d["fecha_inicio"]:
+            self.add_error("fecha_fin", "Debe ser igual o posterior a la fecha inicial.")
+        return d
+
+
+@requiere_compania
+@requiere_edicion
+def nuevo(request):
+    inicio, fin, pago = servicios.sugerir_periodo(request.compania)
+    form = PeriodoForm(request.POST or None, initial={"fecha_inicio": inicio, "fecha_fin": fin, "fecha_pago": pago,
+                                                       "tipo": PeriodoNomina.Tipo.REGULAR})
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        periodo = servicios.crear_periodo(
+            compania=request.compania, inicio=d["fecha_inicio"], fin=d["fecha_fin"], fecha_pago=d["fecha_pago"],
+            tipo=d["tipo"], descripcion=d["descripcion"], usuario=request.user,
+        )
+        registrar(request, Accion.PERIODO_CREADO, objeto=periodo)
+        messages.success(request, f"Período creado con {periodo.entradas.count()} empleados.")
+        return redirect("nomina:detalle", pk=periodo.pk)
+    return render(request, "nomina/nuevo.html", {"form": form})
+
+
+def _valor_rapido(entrada, codigo):
+    filas = [i for i in entrada.ingresos.all() if i.concepto.codigo == codigo]
+    if len(filas) > 1:
+        return None  # varias líneas: se editan en el detalle del empleado
+    return filas[0].monto if filas else ""
+
+
+@requiere_compania
+def detalle(request, pk):
+    periodo = _periodo(request, pk)
+    entradas = list(
+        periodo.entradas.select_related("empleado").prefetch_related("ingresos__concepto", "deducciones__concepto")
+    )
+    errores = []
+    if request.method == "POST" and request.POST.get("accion") == "guardar":
+        if not request.user.puede_editar:
+            messages.error(request, "No tiene permiso para modificar la nómina.")
+            return redirect("nomina:detalle", pk=periodo.pk)
+        if not periodo.editable:
+            messages.error(request, "La nómina está cerrada.")
+            return redirect("nomina:detalle", pk=periodo.pk)
+        conceptos = {c.codigo: c for c in ConceptoIngreso.objects.filter(codigo__in=INGRESOS_RAPIDOS)}
+        with transaction.atomic():
+            for entrada in entradas:
+                try:
+                    for campo, _ in CAMPOS_HORAS:
+                        setattr(entrada, campo, _decimal(request.POST.get(f"{campo}_{entrada.pk}")))
+                    rapidos = {c: _decimal(request.POST.get(f"{c}_{entrada.pk}")) for c in INGRESOS_RAPIDOS
+                               if f"{c}_{entrada.pk}" in request.POST}
+                except InvalidOperation:
+                    errores.append(f"{entrada.empleado.nombre_completo}: hay un valor que no es un número válido.")
+                    continue
+                entrada.incluir = request.POST.get(f"incluir_{entrada.pk}") == "on"
+                entrada.save()
+                for codigo, monto in rapidos.items():
+                    if codigo not in conceptos:
+                        continue
+                    entrada.ingresos.filter(concepto=conceptos[codigo]).delete()
+                    if monto:
+                        EntradaIngreso.objects.create(entrada=entrada, concepto=conceptos[codigo], monto=monto)
+            if errores:
+                transaction.set_rollback(True)
+            else:
+                servicios.marcar_modificado(periodo)
+        if not errores:
+            registrar(request, Accion.NOMINA_ENTRADAS, objeto=periodo, descripcion="Horas e ingresos guardados")
+            messages.success(request, "Horas e ingresos guardados. Calcule la pre-nómina para ver los resultados.")
+            return redirect("nomina:detalle", pk=periodo.pk)
+
+    filas = [
+        {
+            "entrada": e,
+            "horas": [(campo, getattr(e, campo)) for campo, _ in CAMPOS_HORAS],
+            "rapidos": [(c, _valor_rapido(e, c)) for c in INGRESOS_RAPIDOS],
+            "otros": sum(1 for i in e.ingresos.all() if i.concepto.codigo not in INGRESOS_RAPIDOS),
+            "deducciones": sum((d.monto for d in e.deducciones.all()), Decimal("0")),
+        }
+        for e in entradas
+    ]
+    resultados = list(periodo.resultados.all())
+    totales = periodo.resultados.aggregate(
+        bruto=Sum("bruto"), retenciones=Sum("total_retenciones"), deducciones=Sum("total_deducciones"),
+        neto=Sum("neto"), patronal=Sum("total_patronal"),
+    )
+    return render(
+        request,
+        "nomina/detalle.html",
+        {
+            "periodo": periodo, "filas": filas, "columnas_horas": [e for _, e in CAMPOS_HORAS],
+            "columnas_rapidas": INGRESOS_RAPIDOS, "resultados": resultados, "totales": totales, "errores": errores,
+            "con_alertas": sum(1 for r in resultados if r.alertas),
+            "historial": RegistroAuditoria.objects.filter(objeto_tipo=periodo._meta.label, objeto_id=str(periodo.pk))[:20],
+        },
+    )
+
+
+@requiere_compania
+@requiere_edicion
+@require_POST
+def calcular(request, pk):
+    periodo = _periodo(request, pk)
+    try:
+        errores = servicios.calcular_periodo(periodo, request.user)
+    except (servicios.ErrorNomina, cargar.ConfiguracionFaltante, ErrorNominaCerrada) as e:
+        messages.error(request, str(e))
+    else:
+        registrar(request, Accion.NOMINA_CALCULADA, objeto=periodo,
+                  cambios={"empleados": periodo.resultados.count(), "errores": len(errores)})
+        if errores:
+            messages.warning(request, f"Pre-nómina calculada con {len(errores)} error(es). Corríjalos antes de aprobar.")
+        else:
+            messages.success(request, "Pre-nómina calculada. Revise los resultados y apruebe.")
+    return redirect("nomina:detalle", pk=periodo.pk)
+
+
+@requiere_compania
+@requiere_edicion
+@require_POST
+def cerrar(request, pk):
+    periodo = _periodo(request, pk)
+    try:
+        servicios.cerrar_periodo(periodo, request.user)
+    except servicios.ErrorNomina as e:
+        messages.error(request, str(e))
+    else:
+        totales = periodo.resultados.aggregate(bruto=Sum("bruto"), neto=Sum("neto"))
+        registrar(request, Accion.NOMINA_PROCESADA, objeto=periodo,
+                  cambios={"empleados": periodo.resultados.count(), "bruto": totales["bruto"], "neto": totales["neto"]})
+        messages.success(request, "Nómina aprobada y cerrada.")
+    return redirect("nomina:detalle", pk=periodo.pk)
+
+
+@requiere_compania
+@requiere_admin
+@require_POST
+def reversar(request, pk):
+    periodo = _periodo(request, pk)
+    try:
+        reverso = servicios.reversar_periodo(periodo, request.POST.get("motivo", ""), request.user)
+    except servicios.ErrorNomina as e:
+        messages.error(request, str(e))
+        return redirect("nomina:detalle", pk=periodo.pk)
+    registrar(request, Accion.NOMINA_REVERSADA, objeto=periodo, descripcion=periodo.motivo_reverso,
+              cambios={"reverso": reverso.pk})
+    messages.success(request, "Nómina reversada. Cree un período nuevo para procesar el pago correcto.")
+    return redirect("nomina:detalle", pk=reverso.pk)
+
+
+# --- Detalle de un empleado en el período -------------------------------------------
+
+
+class EntradaForm(forms.ModelForm):
+    class Meta:
+        model = EntradaNomina
+        fields = ["incluir"] + [c for c, _ in CAMPOS_HORAS] + ["semanas_choferil"]
+
+
+class LineaForm(forms.Form):
+    concepto = forms.ModelChoiceField(queryset=ConceptoIngreso.objects.none())
+    monto = forms.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+    descripcion = forms.CharField(max_length=200, required=False)
+
+    def __init__(self, *args, modelo, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["concepto"].queryset = modelo.objects.filter(activo=True)
+
+
+@requiere_compania
+def entrada(request, pk, entrada_pk):
+    periodo = _periodo(request, pk)
+    entrada = get_object_or_404(EntradaNomina, pk=entrada_pk, periodo=periodo)
+    puede = request.user.puede_editar and periodo.editable
+    form = EntradaForm(request.POST if request.POST.get("accion") == "horas" else None, instance=entrada)
+    form_ingreso = LineaForm(request.POST if request.POST.get("accion") == "ingreso" else None, modelo=ConceptoIngreso,
+                             prefix="ing")
+    form_deduccion = LineaForm(request.POST if request.POST.get("accion") == "deduccion" else None,
+                               modelo=ConceptoDeduccion, prefix="ded")
+    if request.method == "POST":
+        if not puede:
+            messages.error(request, "La nómina no se puede modificar.")
+            return redirect("nomina:entrada", pk=periodo.pk, entrada_pk=entrada.pk)
+        accion = request.POST.get("accion")
+        cambio = False
+        if accion == "horas" and form.is_valid():
+            form.save()
+            cambio = True
+        elif accion == "ingreso" and form_ingreso.is_valid():
+            EntradaIngreso.objects.create(entrada=entrada, **form_ingreso.cleaned_data)
+            cambio = True
+        elif accion == "deduccion" and form_deduccion.is_valid():
+            EntradaDeduccion.objects.create(entrada=entrada, **form_deduccion.cleaned_data)
+            cambio = True
+        elif accion == "borrar_ingreso":
+            cambio = bool(entrada.ingresos.filter(pk=request.POST.get("id")).delete()[0])
+        elif accion == "borrar_deduccion":
+            cambio = bool(entrada.deducciones.filter(pk=request.POST.get("id")).delete()[0])
+        if cambio:
+            servicios.marcar_modificado(periodo)
+            registrar(request, Accion.NOMINA_ENTRADAS, objeto=periodo,
+                      descripcion=f"{entrada.empleado.nombre_completo}: {accion}")
+            messages.success(request, "Guardado. Recuerde calcular de nuevo la pre-nómina.")
+            return redirect("nomina:entrada", pk=periodo.pk, entrada_pk=entrada.pk)
+    resultado = periodo.resultados.filter(empleado=entrada.empleado).prefetch_related("lineas").first()
+    return render(
+        request,
+        "nomina/entrada.html",
+        {"periodo": periodo, "entrada": entrada, "form": form, "form_ingreso": form_ingreso,
+         "form_deduccion": form_deduccion, "resultado": resultado, "puede": puede},
+    )
+
+
+# --- Talonarios y registro --------------------------------------------------------------
+
+
+def _pdf(contenido, nombre):
+    respuesta = HttpResponse(contenido, content_type="application/pdf")
+    respuesta["Content-Disposition"] = f'inline; filename="{nombre}"'
+    return respuesta
+
+
+@requiere_compania
+def talonarios(request, pk):
+    periodo = _periodo(request, pk)
+    resultados = periodo.resultados.select_related("empleado", "periodo__compania").prefetch_related("lineas")
+    empleado = request.GET.get("empleado", "")
+    if empleado.isdigit():
+        resultados = resultados.filter(empleado_id=int(empleado))
+    if not resultados.exists():
+        messages.error(request, "No hay resultados. Calcule la pre-nómina primero.")
+        return redirect("nomina:detalle", pk=periodo.pk)
+    registrar(request, Accion.ARCHIVO_GENERADO, objeto=periodo,
+              descripcion=f"Talonarios PDF ({resultados.count()})" + ("" if periodo.cerrado else " — PRE-NÓMINA"))
+    return _pdf(talonario.generar_pdf(list(resultados)), f"talonarios_{periodo.fecha_pago:%Y%m%d}.pdf")
+
+
+@requiere_compania
+def registro(request, pk):
+    """Registro de nómina del período en Excel."""
+    periodo = _periodo(request, pk)
+    resultados = periodo.resultados.prefetch_related("lineas")
+    codigos = {"ingreso": [], "retencion": [], "deduccion": [], "patronal": []}
+    nombres = {}
+    for r in resultados:
+        for l in r.lineas.all():
+            if l.codigo not in codigos[l.grupo]:
+                codigos[l.grupo].append(l.codigo)
+            nombres[(l.grupo, l.codigo)] = l.nombre
+    columnas = [(g, c) for g in ("ingreso", "retencion", "deduccion", "patronal") for c in codigos[g]]
+    encabezados = (["Núm.", "Empleado", "SSN (últimos 4)", "Departamento", "Horas"]
+                   + [nombres[c] for c in columnas[:len(codigos["ingreso"])]] + ["Bruto"]
+                   + [nombres[c] for c in columnas[len(codigos["ingreso"]):]] + ["Neto", "Costo patronal"])
+    filas = []
+    totales = [Decimal("0")] * (len(columnas) + 4)
+    for r in resultados:
+        montos = {}
+        for l in r.lineas.all():
+            montos[(l.grupo, l.codigo)] = montos.get((l.grupo, l.codigo), Decimal("0")) + l.monto
+        valores = [montos.get(c, Decimal("0")) for c in columnas]
+        n_ing = len(codigos["ingreso"])
+        fila_valores = valores[:n_ing] + [r.bruto] + valores[n_ing:] + [r.neto, r.total_patronal]
+        filas.append([r.numero_empleado, r.empleado_nombre, r.ssn_ultimos4, r.departamento, r.horas_trabajadas]
+                     + fila_valores)
+        totales = [a + b for a, b in zip(totales, [r.horas_trabajadas] + fila_valores)]
+    contenido = hojas.libro_xlsx(
+        "Registro", encabezados, filas, ["", "TOTAL", "", ""] + totales,
+    )
+    registrar(request, Accion.ARCHIVO_GENERADO, objeto=periodo, descripcion="Registro de nómina (Excel)")
+    respuesta = HttpResponse(contenido, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    respuesta["Content-Disposition"] = f'attachment; filename="registro_nomina_{periodo.fecha_pago:%Y%m%d}.xlsx"'
+    return respuesta
+
+
+# --- Deducciones recurrentes --------------------------------------------------------------
+
+
+class DeduccionRecurrenteForm(forms.ModelForm):
+    class Meta:
+        model = DeduccionRecurrente
+        fields = ["concepto", "monto", "desde", "hasta", "notas"]
+        widgets = {"desde": FechaInput(), "hasta": FechaInput()}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["concepto"].queryset = ConceptoDeduccion.objects.filter(activo=True)
+
+
+@requiere_compania
+def deducciones_empleado(request, pk):
+    emp = get_object_or_404(Empleado, pk=pk, compania=request.compania)
+    form = DeduccionRecurrenteForm(request.POST if request.POST.get("accion") == "nueva" else None)
+    if request.method == "POST":
+        if not request.user.puede_editar:
+            messages.error(request, "No tiene permiso.")
+            return redirect("nomina:deducciones_empleado", pk=emp.pk)
+        accion = request.POST.get("accion")
+        if accion == "nueva" and form.is_valid():
+            ded = form.save(commit=False)
+            ded.empleado = emp
+            ded.save()
+            registrar(request, Accion.DEDUCCION_RECURRENTE, objeto=emp,
+                      cambios={"concepto": str(ded.concepto), "monto": ded.monto}, descripcion="Deducción añadida")
+            messages.success(request, "Deducción recurrente añadida. Se aplicará en las próximas nóminas.")
+            return redirect("nomina:deducciones_empleado", pk=emp.pk)
+        if accion == "desactivar":
+            ded = get_object_or_404(DeduccionRecurrente, pk=request.POST.get("id"), empleado=emp)
+            ded.activo = False
+            ded.save(update_fields=["activo"])
+            registrar(request, Accion.DEDUCCION_RECURRENTE, objeto=emp,
+                      cambios={"concepto": str(ded.concepto), "monto": ded.monto}, descripcion="Deducción desactivada")
+            messages.success(request, "Deducción desactivada.")
+            return redirect("nomina:deducciones_empleado", pk=emp.pk)
+    return render(request, "nomina/deducciones.html",
+                  {"empleado": emp, "deducciones": emp.deducciones_recurrentes.select_related("concepto"), "form": form})

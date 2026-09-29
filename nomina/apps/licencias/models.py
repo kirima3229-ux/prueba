@@ -41,6 +41,9 @@ class MovimientoLicencia(models.Model):
     horas = models.DecimalField(max_digits=8, decimal_places=2, help_text="Positivo suma, negativo resta.")
     horas_trabajadas = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
     descripcion = models.CharField(max_length=300, blank=True)
+    periodo_nomina = models.ForeignKey(
+        "nomina.PeriodoNomina", null=True, blank=True, on_delete=models.PROTECT, related_name="movimientos_licencia"
+    )
     creado = models.DateTimeField(auto_now_add=True)
     creado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"

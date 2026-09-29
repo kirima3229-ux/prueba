@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Nómina{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <h1>Nómina — {{ compania_activa }}</h1>
+  {% if user.puede_editar %}<div class="acciones"><a class="boton" href="{% url 'nomina:nuevo' %}">Nuevo período</a></div>{% endif %}
+</div>
+<p class="texto-suave">Frecuencia de pago: {{ compania_activa.get_frecuencia_pago_display|lower }}. Flujo: crear período → entrar horas e ingresos → calcular pre-nómina → aprobar y cerrar → talonarios.</p>
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Período</th><th>Pago</th><th>Tipo</th><th class="num">Empleados</th><th class="num">Bruto</th><th class="num">Neto</th><th>Estado</th></tr></thead>
+  <tbody>
+  {% for p in periodos %}
+  <tr>
+    <td><a href="{% url 'nomina:detalle' p.pk %}">{{ p.fecha_inicio|date:"m/d/Y" }} – {{ p.fecha_fin|date:"m/d/Y" }}</a>{% if p.descripcion %}<br><small class="texto-suave">{{ p.descripcion }}</small>{% endif %}</td>
+    <td>{{ p.fecha_pago|date:"m/d/Y" }}</td>
+    <td>{{ p.get_tipo_display }}</td>
+    <td class="num">{{ p.empleados }}</td>
+    <td class="num">{% if p.bruto is not None %}${{ p.bruto|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+    <td class="num">{% if p.neto is not None %}${{ p.neto|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+    <td>{% include "nomina/_estado.html" %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="7" class="vacio">No hay nóminas todavía.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

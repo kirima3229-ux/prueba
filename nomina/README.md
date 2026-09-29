@@ -201,6 +201,26 @@ opción para incluirla cuando la compañía la paga.
 Pendiente en la Fase 2: retención federal (W-4). Pendiente en la Fase 4: archivo
 trimestral de servicios prestados (en espera del formato).
 
+## Fase 3a — flujo de nómina, talonarios y registro
+
+Menú **Nómina**:
+
+1. **Nuevo período**: el sistema sugiere las fechas según la frecuencia de pago de la compañía. Se crean las
+   entradas de todos los empleados activos y se copian sus **deducciones recurrentes** vigentes (plan médico,
+   préstamos, etc.; se configuran desde la ficha del empleado → *Deducciones recurrentes*).
+2. **Horas**: en la rejilla del período se entran horas regulares, extra, séptimo día, período de alimentos,
+   vacaciones y enfermedad, y propinas, comisiones y bonos. Cada empleado tiene su pantalla para ingresos y deducciones
+   adicionales. Un empleado se puede excluir del período.
+3. **Calcular (pre-nómina)**: usa el motor de la Fase 2 con los acumulados del año (topes de Seguro Social, FUTA, SUTA)
+   y avisa si una licencia excede el balance. Cualquier cambio posterior marca el período para recalcular.
+4. **Cerrar**: sólo si está calculado, al día y sin errores. Al cerrar se descuentan las horas de vacaciones y
+   enfermedad usadas. Un período cerrado **no se puede editar**.
+5. **Reversar** (sólo administrador, con motivo): crea un período de reverso con los montos negativos y devuelve las
+   licencias. El período original queda como *Reversada* y todo queda en la bitácora.
+
+**Talonarios** en PDF (SSN enmascarado, período actual y acumulado del año por concepto, balances de licencias) y
+**registro de nómina** en Excel.
+
 ## Estructura
 
 ```
