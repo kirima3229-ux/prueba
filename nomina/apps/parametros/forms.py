@@ -72,7 +72,7 @@ class CopiarAnioForm(forms.Form):
 class SalarioMinimoForm(VerificarMixin, forms.ModelForm):
     class Meta:
         model = SalarioMinimo
-        fields = ["vigente_desde", "tarifa_hora", "notas"]
+        fields = ["vigente_desde", "tarifa_hora", "tarifa_propinas", "notas"]
         widgets = {"vigente_desde": FechaInput(), "notas": forms.Textarea(attrs={"rows": 2})}
 
 

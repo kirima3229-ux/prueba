@@ -149,3 +149,12 @@ def test_simulador_no_permite_empleados_ajenos(cliente_preparador, compania, otr
         "empleado": ajeno.pk, "fecha_pago": "2026-09-25", "horas_regulares": "40"})
     assert respuesta.context["resultado"] is None
     assert "empleado" in respuesta.context["form"].errors
+
+
+@pytest.mark.django_db
+def test_minimo_con_propinas_llega_al_motor():
+    minimo = SalarioMinimo.objects.get(vigente_desde=date(2024, 7, 1))
+    assert cargar.parametros(date(2026, 3, 1)).salario_minimo_propinas is None
+    minimo.tarifa_propinas = D("2.13")
+    minimo.save()
+    assert cargar.parametros(date(2026, 3, 1)).salario_minimo_propinas == D("2.13")

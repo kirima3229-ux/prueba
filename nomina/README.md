@@ -141,7 +141,10 @@ la ficha lo indica con la etiqueta "Asignado manualmente".
   topes de desempleo estatal y SINOT, Seguro Choferil semanal, exenciones del 499 R-4, **tabla de retención de PR
   por tramos** y **multiplicadores de horas extra** por régimen (antes de Ley 4-2017 / Ley 4-2017).
   *Crear año copiando* prepara el año siguiente a partir del anterior.
-- **Salario mínimo** con fecha de vigencia ($9.50 desde 7/1/2023 y $10.50 desde 7/1/2024).
+- **Salario mínimo** con fecha de vigencia ($9.50 desde 7/1/2023 y $10.50 desde 7/1/2024) y, opcional, el mínimo
+  en efectivo para **empleados con propinas** (meseros). A estos empleados se les puede pagar menos del mínimo, pero
+  sus **vacaciones y licencias por enfermedad se pagan al salario mínimo**; el sistema avisa si tarifa + propinas no
+  alcanzan el mínimo por las horas trabajadas y cuánto debe completar el patrono.
 - **Conceptos de ingreso** (a qué contribuciones está sujeto cada uno) y **de deducción** (antes o después de la
   retención de PR, federal y Seguro Social/Medicare/desempleo).
 - **Tasas CFSE** por clasificación y año, en la ficha de la compañía.

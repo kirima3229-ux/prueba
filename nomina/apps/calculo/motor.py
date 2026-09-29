@@ -80,6 +80,7 @@ class Parametros:
     tramos: tuple
     horas_extra: dict  # regimen -> ReglaHorasExtra
     salario_minimo: Decimal | None = None
+    salario_minimo_propinas: Decimal | None = None  # mínimo en efectivo para empleados con propinas
     verificado: bool = False
 
 
@@ -329,16 +330,31 @@ def calcular(
                     )
                 )
 
-    # 3. Licencias pagadas
-    for codigo, cantidad, nombre in (
+    # 3. Licencias pagadas (vacaciones y enfermedad)
+    #    Se pagan como mínimo al salario mínimo: un empleado con propinas (mesero)
+    #    que cobra menos del mínimo recibe sus licencias al salario mínimo.
+    licencias = [
         ("vacaciones", horas.vacaciones, "Vacaciones pagadas"),
         ("enfermedad", horas.enfermedad, "Licencia por enfermedad pagada"),
-    ):
-        if cantidad:
-            if tarifa_hora is None:
-                raise ErrorCalculo("No se puede pagar licencia en horas sin tarifa por hora.")
-            monto = redondear(Decimal(cantidad) * tarifa_hora)
-            ingresos.append(Monto(concepto(codigo, nombre), monto, f"{cantidad} h × {dinero(redondear(tarifa_hora))} = {dinero(monto)}"))
+    ]
+    if any(cantidad for _, cantidad, _ in licencias):
+        if empleado.tipo_pago != "hora":
+            r.alertas.append(
+                "Empleado asalariado: las horas de licencia ya están incluidas en el salario del período "
+                "(no se pagan aparte; solo se descuentan del balance)."
+            )
+        else:
+            minimo = parametros.salario_minimo
+            al_minimo = minimo is not None and tarifa_hora < minimo
+            tarifa_licencia = minimo if al_minimo else tarifa_hora
+            for codigo, cantidad, nombre in licencias:
+                if not cantidad:
+                    continue
+                monto = redondear(Decimal(cantidad) * tarifa_licencia)
+                detalle = f"{cantidad} h × {dinero(redondear(tarifa_licencia))}"
+                if al_minimo:
+                    detalle += f" (al salario mínimo; su tarifa es {dinero(redondear(tarifa_hora))})"
+                ingresos.append(Monto(concepto(codigo, nombre), monto, f"{detalle} = {dinero(monto)}"))
 
     # 4. Otros ingresos (propinas, comisiones, bonos, reembolsos, misceláneos)
     ingresos.extend(m for m in otros_ingresos if m.monto)
@@ -474,10 +490,30 @@ def calcular(
 
     # 13. Alertas
     if p.salario_minimo is not None and tarifa_hora is not None and tarifa_hora < p.salario_minimo:
-        r.alertas.append(
-            f"La tarifa por hora {dinero(redondear(tarifa_hora))} está por debajo del salario mínimo "
-            f"{dinero(p.salario_minimo)}" + (" (el empleado recibe propinas: verifique si aplica)." if empleado.recibe_propinas else ".")
-        )
+        if not empleado.recibe_propinas:
+            r.alertas.append(
+                f"La tarifa por hora {dinero(redondear(tarifa_hora))} está por debajo del salario mínimo "
+                f"{dinero(p.salario_minimo)}."
+            )
+        else:
+            # Empleado con propinas: puede cobrar menos del mínimo en efectivo, pero
+            # tarifa + propinas deben alcanzar el mínimo por las horas trabajadas.
+            if p.salario_minimo_propinas is not None and tarifa_hora < p.salario_minimo_propinas:
+                r.alertas.append(
+                    f"La tarifa por hora {dinero(redondear(tarifa_hora))} está por debajo del mínimo en efectivo "
+                    f"para empleados con propinas ({dinero(p.salario_minimo_propinas)})."
+                )
+            horas_trabajadas = Decimal(horas.regulares) + sum(Decimal(h) for _, h, _ in extras)
+            if horas_trabajadas > 0:
+                efectivo = sum((m.monto for m in ingresos if m.concepto.codigo in ("regular", "horas_extra")), CERO)
+                propinas = sum((m.monto for m in ingresos if m.concepto.codigo == "propinas"), CERO)
+                exigido = redondear(horas_trabajadas * p.salario_minimo)
+                faltante = exigido - redondear(efectivo + propinas)
+                if faltante > 0:
+                    r.alertas.append(
+                        f"Salario + propinas ({dinero(efectivo + propinas)}) no alcanzan el salario mínimo por "
+                        f"{horas_trabajadas} horas ({dinero(exigido)}): el patrono debe completar {dinero(faltante)}."
+                    )
     if r.neto < 0:
         r.alertas.append(f"El neto a pagar es negativo ({dinero(r.neto)}): revise las deducciones.")
     if not p.verificado:

@@ -50,6 +50,7 @@ def parametros(fecha: date) -> motor.Parametros:
             for r in p.reglas_horas_extra.all()
         },
         salario_minimo=minimo.tarifa_hora if minimo else None,
+        salario_minimo_propinas=minimo.tarifa_propinas if minimo else None,
         verificado=p.verificado and (minimo is None or minimo.verificado),
     )
 

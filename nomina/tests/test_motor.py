@@ -211,3 +211,53 @@ def test_cada_linea_tiene_explicacion():
     r = calc(deducciones=[Monto(PLAN_MEDICO, D("50"))])
     for linea in r.ingresos + r.retenciones + r.patronales + r.deducciones:
         assert linea.explicacion, linea.codigo
+
+
+# --- Empleados con propinas (meseros) --------------------------------------------
+
+MESERO = motor.Empleado(regimen="ley4", tipo_pago="hora", tarifa=D("4"), recibe_propinas=True)
+
+
+def test_mesero_licencias_se_pagan_al_salario_minimo():
+    r = calc(MESERO, Horas(regulares=D("40"), vacaciones=D("8"), enfermedad=D("4")),
+             otros_ingresos=[Monto(PROPINAS, D("400"))])
+    assert r.monto("regular") == D("160.00")         # 40 h a su tarifa de $4
+    assert r.monto("vacaciones") == D("84.00")       # 8 h al mínimo de $10.50
+    assert r.monto("enfermedad") == D("42.00")       # 4 h al mínimo
+    vacaciones = next(l for l in r.ingresos if l.codigo == "vacaciones")
+    assert "al salario mínimo" in vacaciones.explicacion
+    # Con propinas suficientes no hay alerta de salario mínimo.
+    assert not any("mínimo" in a for a in r.alertas)
+
+
+def test_mesero_propinas_insuficientes():
+    r = calc(MESERO, Horas(regulares=D("40")), otros_ingresos=[Monto(PROPINAS, D("100"))])
+    # 40 h × $10.50 = $420; $160 + $100 = $260 → faltan $160
+    assert any("debe completar $160.00" in a for a in r.alertas)
+
+
+def test_mesero_bajo_el_minimo_en_efectivo():
+    params = motor.Parametros(**{**PARAMS.__dict__, "salario_minimo_propinas": D("3")})
+    emp = motor.Empleado(regimen="ley4", tipo_pago="hora", tarifa=D("2"), recibe_propinas=True)
+    r = motor.calcular(empleado=emp, parametros=params, tasas=TASAS, frecuencia="semanal",
+                       horas=Horas(regulares=D("40")), otros_ingresos=[Monto(PROPINAS, D("500"))])
+    assert any("mínimo en efectivo" in a for a in r.alertas)
+
+
+def test_empleado_sin_propinas_bajo_el_minimo_si_alerta():
+    emp = motor.Empleado(regimen="ley4", tipo_pago="hora", tarifa=D("8"))
+    r = calc(emp, Horas(regulares=D("40"), vacaciones=D("8")))
+    assert any("por debajo del salario mínimo" in a for a in r.alertas)
+    assert r.monto("vacaciones") == D("84.00")  # las licencias nunca bajo el mínimo
+
+
+def test_licencias_a_su_tarifa_si_es_mayor_que_el_minimo():
+    r = calc(horas=Horas(regulares=D("32"), vacaciones=D("8")))
+    assert r.monto("vacaciones") == D("96.00")  # 8 × $12
+
+
+def test_asalariado_licencias_incluidas_en_el_salario():
+    emp = motor.Empleado(regimen="ley4", tipo_pago="salario", tarifa=D("800"), horas_regulares_periodo=D("40"))
+    r = calc(emp, Horas(vacaciones=D("8")))
+    assert r.bruto == D("800.00") and r.monto("vacaciones") == D("0")
+    assert any("incluidas en el salario" in a for a in r.alertas)

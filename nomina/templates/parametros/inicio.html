@@ -21,8 +21,8 @@
 
 <div class="tarjeta">
   <div class="encabezado"><h2>Salario mínimo</h2><a class="boton pequeno" href="{% url 'parametros:minimo_nuevo' %}">Añadir</a></div>
-  <table><thead><tr><th>Vigente desde</th><th class="num">Por hora</th><th>Notas</th><th>Estado</th><th></th></tr></thead>
-    <tbody>{% for m in minimos %}<tr><td>{{ m.vigente_desde|date:"m/d/Y" }}</td><td class="num">${{ m.tarifa_hora }}</td><td>{{ m.notas }}</td>
+  <table><thead><tr><th>Vigente desde</th><th class="num">Por hora</th><th class="num">Con propinas (efectivo)</th><th>Notas</th><th>Estado</th><th></th></tr></thead>
+    <tbody>{% for m in minimos %}<tr><td>{{ m.vigente_desde|date:"m/d/Y" }}</td><td class="num">${{ m.tarifa_hora }}</td><td class="num">{% if m.tarifa_propinas is not None %}${{ m.tarifa_propinas }}{% else %}<span class="texto-suave">sin definir</span>{% endif %}</td><td>{{ m.notas }}</td>
       <td>{% include "parametros/_estado.html" with obj=m %}</td><td><a class="boton pequeno secundario" href="{% url 'parametros:minimo_editar' m.pk %}">Editar</a></td></tr>{% endfor %}</tbody></table>
 </div>
 

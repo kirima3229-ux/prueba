@@ -121,6 +121,13 @@ class ReglaHorasExtra(models.Model):
 class SalarioMinimo(VerificableMixin):
     vigente_desde = models.DateField("vigente desde", unique=True)
     tarifa_hora = _dinero("salario mínimo por hora ($)")
+    tarifa_propinas = _dinero(
+        "mínimo en efectivo por hora para empleados con propinas ($)",
+        null=True,
+        blank=True,
+        help_text="Lo mínimo que el patrono paga en efectivo a meseros y otros empleados con propinas. "
+        "Sus vacaciones y licencias por enfermedad se pagan al salario mínimo completo.",
+    )
 
     class Meta:
         ordering = ["-vigente_desde"]
