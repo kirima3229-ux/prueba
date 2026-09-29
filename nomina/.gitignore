@@ -11,3 +11,8 @@ backups/
 *.log
 .venv/
 venv/
+
+# Respaldos de la base de datos (cifrados, pero no van al repositorio)
+respaldos/
+*.respaldo
+*.respaldo.parcial

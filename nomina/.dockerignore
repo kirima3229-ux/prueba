@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+*.sqlite3
+respaldos/
+*.respaldo
+*.respaldo.parcial
+staticfiles/
+__pycache__/
+*.pyc
+.pytest_cache/
+.git/
+tests/

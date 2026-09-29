@@ -36,6 +36,9 @@ class Resultado:
 def _leer(archivo, hoja, columnas, relleno, resultado):
     try:
         filas = hojas.leer_archivo(archivo, hoja, relleno)
+    except hojas.ErrorArchivo as e:
+        resultado.errores.append(ErrorFila(0, "", str(e)))
+        return None
     except Exception:  # archivo dañado o formato inesperado
         resultado.errores.append(ErrorFila(0, "", "No se pudo leer el archivo. Verifique que sea .xlsx o .csv válido."))
         return None

@@ -1,4 +1,8 @@
+from django.contrib.auth.decorators import login_not_required
+from django.db import DatabaseError, connection
+from django.http import HttpResponse
 from django.shortcuts import render
+from django.views.decorators.http import require_GET
 from django.utils import timezone
 
 from apps.auditoria.models import RegistroAuditoria
@@ -33,3 +37,15 @@ def error_403(request, exception=None):
 
 def error_404(request, exception=None):
     return render(request, "errores/404.html", status=404)
+
+
+@login_not_required
+@require_GET
+def salud(request):
+    """Chequeo de salud para Docker/monitoreo: sin sesión, sin datos; sólo confirma que la base de datos responde."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+    except DatabaseError:
+        return HttpResponse("base de datos no disponible", status=503, content_type="text/plain")
+    return HttpResponse("ok", content_type="text/plain")

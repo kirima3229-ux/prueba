@@ -5,9 +5,13 @@ qrcode>=8.2
 django-axes>=8.3
 cryptography>=46
 openpyxl>=3.1
+# openpyxl la usa automáticamente para leer XML de forma segura (XXE, «billion laughs»).
+defusedxml>=0.7
 psycopg[binary]>=3.2
 python-dotenv>=1.0
 gunicorn>=23
 whitenoise>=6.9
 reportlab>=4.0
 pillow>=10
+# Zona horaria de Puerto Rico aunque el sistema no traiga la base de datos de zonas
+tzdata>=2024.1

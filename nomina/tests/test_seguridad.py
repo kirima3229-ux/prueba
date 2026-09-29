@@ -10,7 +10,7 @@ from apps.cuentas.models import Usuario
 
 from .conftest import CONTRASENA, cliente_de, crear_usuario, token_actual
 
-RUTAS_PUBLICAS = {"cuentas:entrar", "cuentas:verificar"}
+RUTAS_PUBLICAS = {"cuentas:entrar", "cuentas:verificar", "salud"}
 
 
 def _todas_las_rutas(resolver=None, prefijo=""):
@@ -197,3 +197,10 @@ def test_redireccion_externa_bloqueada(preparador):
         {"username": "preparador", "password": CONTRASENA, "next": "https://sitio-malicioso.com/"},
     )
     assert respuesta["Location"] == reverse("inicio")
+
+
+@pytest.mark.django_db
+def test_salud_sin_sesion_y_sin_datos(client):
+    respuesta = client.get("/salud/")
+    assert respuesta.status_code == 200 and respuesta.content == b"ok"
+    assert client.post("/salud/").status_code == 405

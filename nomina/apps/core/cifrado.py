@@ -118,10 +118,18 @@ def id_llave_de(token: str) -> str:
     return token.split(":", 2)[1]
 
 
-def indice_ciego(valor: str, contexto: str) -> str:
+def indice_ciego(valor: str, contexto: str, llave: bytes | None = None) -> str:
     """HMAC-SHA256 del valor: permite buscar y evitar duplicados sin descifrar."""
     mensaje = f"{contexto}:{valor}".encode("utf-8")
-    return hmac.new(_llave_indice(), mensaje, hashlib.sha256).hexdigest()
+    return hmac.new(llave or _llave_indice(), mensaje, hashlib.sha256).hexdigest()
+
+
+def llave_de_texto(texto: str, nombre: str = "llave") -> bytes:
+    return _decodificar_llave(texto, nombre)
+
+
+def llaves_configuradas() -> list[str]:
+    return list(_llaves())
 
 
 def generar_llave() -> str:

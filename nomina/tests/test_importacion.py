@@ -120,3 +120,15 @@ def test_importar_por_pantalla_registra_auditoria(cliente_preparador, compania):
     assert respuesta.status_code == 302
     registro = RegistroAuditoria.objects.get(accion=Accion.EMPLEADOS_IMPORTADOS)
     assert "123456789" not in str(registro.cambios)
+
+
+def test_limite_de_filas(monkeypatch):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from apps.core import hojas
+
+    monkeypatch.setattr(hojas, "MAX_FILAS", 3)
+    archivo = SimpleUploadedFile("x.csv", b"a,b\n1,2\n3,4\n5,6\n7,8\n")
+    with pytest.raises(hojas.ErrorArchivo, match="más de 3 filas"):
+        hojas.leer_archivo(archivo, "X")
+    assert len(hojas.leer_archivo(SimpleUploadedFile("x.csv", b"a,b\n1,2\n3,4\n"), "X")) == 2

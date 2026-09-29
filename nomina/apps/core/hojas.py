@@ -43,6 +43,21 @@ def _texto_celda(valor, columna: str, relleno_ceros: dict) -> str:
     return str(valor).strip()
 
 
+MAX_FILAS = 20_000
+MAX_COLUMNAS = 100
+
+
+class ErrorArchivo(ValueError):
+    """Archivo que se puede leer pero no se acepta (demasiado grande)."""
+
+
+def _limitar(filas):
+    for n, fila in enumerate(filas):
+        if n >= MAX_FILAS:
+            raise ErrorArchivo(f"El archivo tiene más de {MAX_FILAS:,} filas. Divídalo en archivos más pequeños.")
+        yield fila
+
+
 def leer_archivo(archivo, hoja_preferida: str, relleno_ceros: dict | None = None) -> list[dict]:
     """
     Lee .xlsx o .csv y devuelve filas {columna_normalizada: texto}.
@@ -53,8 +68,9 @@ def leer_archivo(archivo, hoja_preferida: str, relleno_ceros: dict | None = None
     if archivo.name.lower().endswith(".xlsx"):
         libro = load_workbook(archivo, read_only=True, data_only=True)
         hoja = libro[hoja_preferida] if hoja_preferida in libro.sheetnames else libro.worksheets[0]
-        filas = hoja.iter_rows(values_only=True)
+        filas = hoja.iter_rows(values_only=True, max_col=MAX_COLUMNAS)
         encabezado = [normalizar(c) for c in next(filas, [])]
+        filas = _limitar(filas)
         datos = [
             {
                 encabezado[i]: _texto_celda(v, encabezado[i], relleno_ceros)
@@ -76,7 +92,8 @@ def leer_archivo(archivo, hoja_preferida: str, relleno_ceros: dict | None = None
     except csv.Error:
         dialecto = csv.excel
     lector = csv.reader(io.StringIO(texto), dialecto)
-    encabezado = [normalizar(c) for c in next(lector, [])]
+    encabezado = [normalizar(c) for c in next(lector, [])][:MAX_COLUMNAS]
+    lector = _limitar(lector)
     datos = []
     for valores in lector:
         fila = {encabezado[i]: v.strip() for i, v in enumerate(valores) if i < len(encabezado) and encabezado[i]}

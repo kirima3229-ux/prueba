@@ -195,6 +195,11 @@ NOMINA_LLAVES_CIFRADO = env("NOMINA_LLAVES_CIFRADO", requerido=True)
 NOMINA_LLAVE_ACTIVA = env("NOMINA_LLAVE_ACTIVA", requerido=True)
 NOMINA_LLAVE_INDICE = env("NOMINA_LLAVE_INDICE", requerido=True)
 
+# --- Respaldos cifrados -------------------------------------------------------
+# Llave distinta de las de los campos. Varias separadas por coma: la primera cifra, todas sirven para restaurar.
+NOMINA_LLAVE_RESPALDO = env("NOMINA_LLAVE_RESPALDO", "")
+NOMINA_DIR_RESPALDOS = env("NOMINA_DIR_RESPALDOS", "")
+
 # Número de proxies de confianza delante de la aplicación (Caddy/nginx).
 # 0 = conexión directa; se usa REMOTE_ADDR.
 NOMINA_PROXIES_CONFIABLES = int(env("NOMINA_PROXIES_CONFIABLES", "0"))
@@ -212,11 +217,17 @@ NOMINA_CSP = (
 
 if PRODUCCION:
     SECURE_SSL_REDIRECT = env_bool("NOMINA_FORZAR_HTTPS", True)
+    # El chequeo de salud de Docker llega por HTTP dentro de la red interna.
+    SECURE_REDIRECT_EXEMPT = [r"^salud/$"]
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # Inscribir el dominio en la lista «preload» de los navegadores es una decisión del dueño del dominio.
+    SECURE_HSTS_PRELOAD = env_bool("NOMINA_HSTS_PRELOAD", False)
+    if not SECURE_HSTS_PRELOAD:
+        SILENCED_SYSTEM_CHECKS.append("security.W021")
     SESSION_COOKIE_NAME = "__Host-sessionid"
     CSRF_COOKIE_NAME = "__Host-csrftoken"
 

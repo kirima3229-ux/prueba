@@ -4,11 +4,15 @@ Sistema de nómina para Puerto Rico, multi-compañía, construido con Django + P
 
 | Fase | Contenido | Estado |
 |---|---|---|
-| 1 | Estructura, entrada y seguridad, roles, compañías, empleados, proveedores de servicios prestados, bitácora | **Completada** |
-| 2 | Configuración de tasas y tablas por año, motor de cálculo con pruebas | **En curso** (2a completada) |
-| 3 | Flujo de nómina, talonarios, reportes | Pendiente |
-| 4 | Archivos de Hacienda, DTRH, IRS y CFSE | Pendiente |
-| 5 | Revisión de seguridad, backups, Docker y documentación final | Pendiente |
+| 1 | Estructura, entrada y seguridad, roles, compañías, empleados, proveedores de servicios prestados, bitácora | Completada |
+| 2 | Configuración de tasas y tablas por año, motor de cálculo, licencias, bono y mesada | Completada (falta la retención federal W-4) |
+| 3 | Flujo de nómina, talonarios y cheques, reportes, NACHA, QuickBooks, pagos especiales | Completada |
+| 4 | Planillas de Hacienda, DTRH, IRS y CFSE | Hojas de trabajo completadas; archivos electrónicos pendientes de las especificaciones |
+| 5 | Revisión de seguridad, respaldos cifrados, rotación de llaves, Docker y documentación | Completada |
+
+**Documentación:** [instalación en producción](docs/instalacion_produccion.md) ·
+[operación: respaldos, restauración y llaves](docs/operacion.md) · [seguridad](docs/seguridad.md) ·
+[manual de uso](docs/manual_usuario.md)
 
 ---
 
@@ -349,14 +353,16 @@ nomina/
   tests/             pruebas automatizadas (pytest)
 ```
 
-## Backups
+## Respaldos, llaves y despliegue (Fase 5)
 
-Los backups automáticos cifrados, la restauración paso a paso y la instalación con Docker se documentan en la Fase 5.
-Mientras tanto, en desarrollo:
+| Comando | Qué hace |
+|---|---|
+| `python manage.py respaldar` | Respaldo cifrado (AES-256-GCM, llave `NOMINA_LLAVE_RESPALDO`) de toda la base de datos |
+| `python manage.py verificar_respaldo ARCHIVO` | Comprueba que un respaldo se descifra y es válido |
+| `python manage.py restaurar ARCHIVO --confirmar` | Reemplaza la base de datos con el respaldo |
+| `python manage.py rotar_llaves --inventario` / `--confirmar` | Vuelve a cifrar con la llave activa; `--llave-indice-nueva` rota el índice ciego |
+| `python manage.py generar_llave` | Llave nueva para el `.env` |
+| `docker compose up -d --build` | Producción: PostgreSQL + aplicación + respaldos diarios + Caddy (HTTPS) |
 
-```bash
-pg_dump -Fc nomina > nomina_$(date +%F).dump     # respaldo
-pg_restore -d nomina --clean nomina_2026-09-29.dump   # restauración
-```
-
-Recuerde: el respaldo solo sirve junto con el `.env` que contiene las llaves.
+Detalles en [docs/operacion.md](docs/operacion.md) e [docs/instalacion_produccion.md](docs/instalacion_produccion.md).
+Recuerde: un respaldo sólo sirve junto con el `.env` que contiene las llaves.

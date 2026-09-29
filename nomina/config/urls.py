@@ -6,6 +6,7 @@ from apps.core import views as core_views
 # pasa por pantallas propias que registran cada cambio en la bitácora.
 urlpatterns = [
     path("", core_views.inicio, name="inicio"),
+    path("salud/", core_views.salud, name="salud"),
     path("cuenta/", include("apps.cuentas.urls")),
     path("companias/", include("apps.companias.urls")),
     path("empleados/", include("apps.empleados.urls")),

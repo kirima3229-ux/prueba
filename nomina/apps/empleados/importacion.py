@@ -106,6 +106,9 @@ def procesar(archivo, compania, usuario, solo_validar=True) -> Resultado:
     resultado = Resultado()
     try:
         filas = hojas.leer_archivo(archivo, "Empleados", COLUMNAS_RELLENO_CEROS)
+    except hojas.ErrorArchivo as e:
+        resultado.errores.append(ErrorFila(0, "", str(e)))
+        return resultado
     except Exception:  # archivo dañado o formato inesperado
         resultado.errores.append(ErrorFila(0, "", "No se pudo leer el archivo. Verifique que sea .xlsx o .csv válido."))
         return resultado

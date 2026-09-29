@@ -1,0 +1,12 @@
+# HTTPS automático (Let's Encrypt) para el dominio de la nómina.
+{$NOMINA_DOMINIO} {
+	encode gzip
+	request_body {
+		max_size 10MB
+	}
+	reverse_proxy web:8000
+	log {
+		output stdout
+		format console
+	}
+}

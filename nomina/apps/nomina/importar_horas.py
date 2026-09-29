@@ -79,6 +79,9 @@ def procesar(archivo, periodo, solo_validar=True) -> Resultado:
     resultado = Resultado()
     try:
         filas = hojas.leer_archivo(archivo, "Horas")
+    except hojas.ErrorArchivo as e:
+        resultado.errores.append(Error(0, "", str(e)))
+        return resultado
     except Exception:  # archivo dañado o de otro formato
         resultado.errores.append(Error(0, "", "No se pudo leer el archivo. ¿Es un .xlsx o .csv válido?"))
         return resultado

@@ -1,0 +1,82 @@
+# Producción: PostgreSQL + aplicación + respaldos diarios + Caddy (HTTPS).
+#   python generar_env.py --docker --dominio nomina.midominio.com
+#   docker compose up -d --build
+#   docker compose exec web python manage.py createsuperuser
+name: nomina
+
+x-app: &app
+  build: .
+  image: nomina:latest
+  env_file: .env
+  environment:
+    NOMINA_ENTORNO: produccion
+    NOMINA_DB_MOTOR: postgres
+    POSTGRES_HOST: db
+    NOMINA_PROXIES_CONFIABLES: "1"
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: .env
+    environment:
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    # Sin puertos publicados: sólo la aplicación llega a la base de datos.
+
+  web:
+    <<: *app
+    environment:
+      NOMINA_ENTORNO: produccion
+      NOMINA_DB_MOTOR: postgres
+      POSTGRES_HOST: db
+      NOMINA_PROXIES_CONFIABLES: "1"
+      NOMINA_MIGRAR_AL_INICIAR: "1"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/salud/', headers={'Host': 'localhost'}), timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  respaldos:
+    <<: *app
+    command: ["sh", "docker/respaldos.sh"]
+    volumes:
+      - respaldos:/app/respaldos
+
+  caddy:
+    image: caddy:2-alpine
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  respaldos:
+  caddy_data:
+  caddy_config:
