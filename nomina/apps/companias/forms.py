@@ -40,6 +40,7 @@ class CompaniaForm(forms.ModelForm):
             "email_contacto",
             "frecuencia_pago",
             "frecuencia_deposito",
+            "frecuencia_deposito_federal",
             "numero_empleados",
             "activa",
         ]

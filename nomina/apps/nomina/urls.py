@@ -1,12 +1,13 @@
 from django.urls import path
 
-from . import views
+from . import views, views_reportes
 
 app_name = "nomina"
 
 urlpatterns = [
     path("", views.lista, name="lista"),
     path("nuevo/", views.nuevo, name="nuevo"),
+    path("reportes/", views_reportes.reportes_vista, name="reportes"),
     path("<int:pk>/", views.detalle, name="detalle"),
     path("<int:pk>/calcular/", views.calcular, name="calcular"),
     path("<int:pk>/cerrar/", views.cerrar, name="cerrar"),

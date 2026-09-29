@@ -64,6 +64,13 @@ class Compania(models.Model):
         default=FrecuenciaDeposito.MENSUAL,
         help_text="Cada cuánto se depositan las retenciones (nómina y servicios prestados).",
     )
+    frecuencia_deposito_federal = models.CharField(
+        "frecuencia de depósito federal (941)",
+        max_length=10,
+        choices=FrecuenciaDeposito.choices,
+        default=FrecuenciaDeposito.MENSUAL,
+        help_text="Según el período de referencia del IRS (lookback): mensual o bisemanal (semiweekly).",
+    )
     numero_empleados = models.PositiveIntegerField(
         "número de empleados (declarado)",
         default=0,

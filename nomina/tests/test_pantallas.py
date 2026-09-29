@@ -108,6 +108,10 @@ def _pantallas(d, admin):
         reverse("nomina:deducciones_empleado", args=[e.pk]),
         reverse("nomina:cheques", args=[d["periodo"].pk]),
         reverse("nomina:formato_cheque"),
+        reverse("nomina:reportes"),
+        reverse("nomina:reportes") + "?reporte=costo&agrupar=departamento&rango=anio&anio=2026",
+        reverse("nomina:reportes") + "?reporte=impuestos&rango=rango&desde=2026-01-01&hasta=2026-12-31",
+        reverse("nomina:reportes") + "?reporte=empleados&rango=trimestre&anio=2026&trimestre=3&formato=pdf",
         reverse("nomina:prueba_alineacion"),
     ], [
         reverse("parametros:inicio"),

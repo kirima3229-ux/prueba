@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block titulo %}Reportes de nómina{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a></div>
+<div class="encabezado"><h1>Reportes de nómina</h1></div>
+<nav class="pestanas">
+  {% for codigo, nombre in reportes %}<a href="?reporte={{ codigo }}&rango={{ r.rango }}&anio={{ r.anio }}&mes={{ r.mes }}&trimestre={{ r.trimestre }}&desde={{ r.desde|date:'Y-m-d' }}&hasta={{ r.hasta|date:'Y-m-d' }}" class="{% if codigo == reporte %}activo{% endif %}">{{ nombre }}</a>{% endfor %}
+</nav>
+<form method="get" class="filtros tarjeta">
+  <input type="hidden" name="reporte" value="{{ reporte }}">
+  <div class="campo"><label for="rango">Período</label>
+    <select id="rango" name="rango">
+      <option value="mes" {% if r.rango == "mes" %}selected{% endif %}>Mes</option>
+      <option value="trimestre" {% if r.rango == "trimestre" %}selected{% endif %}>Trimestre</option>
+      <option value="anio" {% if r.rango == "anio" %}selected{% endif %}>Año</option>
+      <option value="rango" {% if r.rango == "rango" %}selected{% endif %}>Fechas</option>
+    </select></div>
+  <div class="campo"><label for="anio">Año</label><input id="anio" name="anio" value="{{ r.anio }}" inputmode="numeric" size="5"></div>
+  <div class="campo"><label for="mes">Mes</label><select id="mes" name="mes">{% for n, nombre in meses %}<option value="{{ n }}" {% if n == r.mes %}selected{% endif %}>{{ nombre|capfirst }}</option>{% endfor %}</select></div>
+  <div class="campo"><label for="trimestre">Trimestre</label><select id="trimestre" name="trimestre">{% for t in "1234" %}<option value="{{ t }}" {% if t|add:0 == r.trimestre %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+  <div class="campo"><label for="desde">Desde</label><input type="date" id="desde" name="desde" value="{{ r.desde|date:'Y-m-d' }}"></div>
+  <div class="campo"><label for="hasta">Hasta</label><input type="date" id="hasta" name="hasta" value="{{ r.hasta|date:'Y-m-d' }}"></div>
+  {% if reporte == "costo" %}<div class="campo"><label for="agrupar">Agrupar por</label><select id="agrupar" name="agrupar"><option value="empleado">Empleado</option><option value="departamento" {% if agrupar == "departamento" %}selected{% endif %}>Departamento</option></select></div>{% endif %}
+  <button class="boton" type="submit">Ver</button>
+</form>
+<div class="encabezado">
+  <h2>{{ titulo }} — {{ r.etiqueta }}</h2>
+  <div class="acciones">
+    <a class="boton secundario" href="?{{ consulta }}&formato=xlsx">Excel</a>
+    <a class="boton secundario" href="?{{ consulta }}&formato=pdf" target="_blank">PDF</a>
+  </div>
+</div>
+<p class="texto-suave">Nóminas pagadas del {{ r.desde|date:"m/d/Y" }} al {{ r.hasta|date:"m/d/Y" }} (sólo nóminas cerradas; los reversos restan).</p>
+<div class="tabla-contenedor">
+<table class="tabla-reporte">
+  <thead><tr>{% for c, tipo in columnas %}<th class="{% if tipo != 'texto' and tipo != 'corto' %}num{% endif %}">{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for fila in filas %}<tr>{% for valor, tipo in fila %}<td class="{% if tipo != 'texto' and tipo != 'corto' %}num{% endif %}{% if tipo == 'pct' %} pct{% endif %}">{{ valor }}</td>{% endfor %}</tr>
+  {% empty %}<tr><td colspan="{{ columnas|length }}" class="vacio">No hay nóminas cerradas en este período.</td></tr>{% endfor %}
+  </tbody>
+  {% if totales %}<tfoot><tr>{% for valor, tipo in totales %}<th class="{% if tipo != 'texto' and tipo != 'corto' %}num{% endif %}">{{ valor }}</th>{% endfor %}</tr></tfoot>{% endif %}
+</table>
+</div>
+{% for n in notas %}<p class="texto-suave">{{ n }}</p>{% endfor %}
+{% endblock %}

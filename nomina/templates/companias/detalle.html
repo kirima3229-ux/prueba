@@ -18,6 +18,7 @@
     <dt>Contacto</dt><dd>{{ compania.persona_contacto|default:"—" }} {{ compania.telefono }} {{ compania.email_contacto }}</dd>
     <dt>Frecuencia de pago</dt><dd>{{ compania.get_frecuencia_pago_display }}</dd>
     <dt>Depósito de retenciones</dt><dd>{{ compania.get_frecuencia_deposito_display }}</dd>
+    <dt>Depósito federal (941)</dt><dd>{{ compania.get_frecuencia_deposito_federal_display }}</dd>
     <dt>Empleados</dt><dd>{{ compania.numero_empleados }} declarados · {{ activos }} activos en el sistema</dd>
   </dl>
 </div>

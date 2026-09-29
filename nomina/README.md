@@ -237,6 +237,19 @@ QuickBooks). El papel debe traer preimpresos el banco, la línea MICR y el núme
 - Los empleados con depósito directo reciben un **aviso de depósito** (no negociable) en el mismo formato.
 - Imprimir cheques requiere rol de preparador o administrador; todo queda en la bitácora.
 
+### Reportes e impuestos a pagar
+
+Menú *Nómina → Reportes* (por mes, trimestre, año o fechas; en pantalla, Excel y PDF). Sólo cuentan las
+nóminas cerradas, por fecha de pago; los reversos restan.
+
+- **Resumen por concepto**: ingresos, retenciones, deducciones y aportaciones, cada una con su % del bruto.
+- **Acumulado por empleado**: con el año completo es el acumulado del año (YTD) de cada empleado.
+- **Costo patronal** por empleado o departamento: cada aportación con su **% al lado del $**, total y % del costo.
+- **Impuestos a pagar** con la fecha de vencimiento: Hacienda (retención; mensual o bisemanal según la compañía),
+  IRS 941 (mensual o bisemanal según *frecuencia de depósito federal* de la compañía), FUTA, DTRH trimestral
+  (desempleo, aportación especial, SINOT, Choferil), CFSE (provisión) y la retención de servicios prestados.
+  Fechas **POR VERIFICAR**; se corren al próximo día laborable (feriados federales).
+
 ## Estructura
 
 ```
