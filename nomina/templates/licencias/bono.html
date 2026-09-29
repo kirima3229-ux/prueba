@@ -10,8 +10,9 @@
 <form class="filtros" method="get">
   <div class="campo"><label for="anio">Año de pago</label><input class="buscar" id="anio" name="anio" type="number" min="2000" max="2100" value="{{ anio }}"></div>
   <button class="boton secundario" type="submit">Cambiar año</button>
+  <button class="boton" type="submit" name="de_nomina" value="1">Traer horas y salarios de la nómina</button>
 </form>
-<p class="texto-suave">Período: {{ desde|date:"m/d/Y" }} al {{ hasta|date:"m/d/Y" }}. La compañía tiene {{ compania_activa.numero_empleados }} empleados declarados (se usa para el porcentaje y el máximo). Escriba las horas trabajadas y el salario de cada empleado en el período; en la Fase 3 vendrán solos de la nómina.</p>
+<p class="texto-suave">Período: {{ desde|date:"m/d/Y" }} al {{ hasta|date:"m/d/Y" }}. La compañía tiene {{ compania_activa.numero_empleados }} empleados declarados (se usa para el porcentaje y el máximo). Escriba las horas trabajadas y el salario de cada empleado en el período, o tráigalos de las nóminas cerradas (el salario excluye propinas, reembolsos, mesada y liquidaciones). Puede corregirlos antes de calcular.</p>
 {% for e in errores %}<div class="mensaje error">{{ e }}</div>{% endfor %}
 {% if filas is not None and not verificado %}<div class="mensaje warning">Las reglas del bono de {{ anio }} están POR VERIFICAR.</div>{% endif %}
 <form method="post" novalidate>

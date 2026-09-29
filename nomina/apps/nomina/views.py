@@ -520,3 +520,40 @@ def avisos_deposito(request, pk):
     registrar(request, Accion.ARCHIVO_GENERADO, objeto=periodo, descripcion=f"Avisos de depósito ({len(resultados)})")
     return _pdf(pdf_cheques.generar_avisos(cheques.formato_de(request.compania), resultados),
                 f"avisos_deposito_{periodo.fecha_pago:%Y%m%d}.pdf")
+
+
+# --- Importar horas -------------------------------------------------------------------
+
+
+@requiere_compania
+@requiere_edicion
+def importar_horas(request, pk):
+    from apps.empleados.forms import ImportarForm
+
+    from . import importar_horas as importacion
+
+    periodo = _periodo(request, pk)
+    if not periodo.editable:
+        messages.error(request, "La nómina está cerrada.")
+        return redirect("nomina:detalle", pk=periodo.pk)
+    if request.GET.get("plantilla") == "1":
+        respuesta = HttpResponse(importacion.plantilla(periodo),
+                                 content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        respuesta["Content-Disposition"] = f'attachment; filename="horas_{periodo.fecha_pago:%Y%m%d}.xlsx"'
+        return respuesta
+    form = ImportarForm(request.POST or None, request.FILES or None)
+    resultado = None
+    if request.method == "POST" and form.is_valid():
+        resultado = importacion.procesar(form.cleaned_data["archivo"], periodo,
+                                         solo_validar=form.cleaned_data["solo_validar"])
+        if resultado.aplicadas:
+            servicios.marcar_modificado(periodo)
+            registrar(request, Accion.NOMINA_ENTRADAS, objeto=periodo,
+                      descripcion=f"Horas importadas de {form.cleaned_data['archivo'].name[:100]}: "
+                                  f"{resultado.aplicadas} empleado(s)",
+                      cambios={"columnas": resultado.columnas_usadas})
+            messages.success(request, f"Se importaron las horas de {resultado.aplicadas} empleado(s). "
+                                      "Revíselas y calcule la pre-nómina.")
+            return redirect("nomina:detalle", pk=periodo.pk)
+    return render(request, "nomina/importar_horas.html",
+                  {"periodo": periodo, "form": form, "resultado": resultado})

@@ -116,6 +116,16 @@ def acumular(request):
                     )
                     messages.success(request, f"Acumulación de {mes:02d}/{anio} guardada para {len(nuevos)} empleados.")
                     return redirect("licencias:balances")
+    de_nomina = request.method == "GET" and request.GET.get("de_nomina") == "1"
+    if de_nomina:
+        from apps.nomina.servicios import horas_del_mes
+
+        valores = {k: str(v) for k, v in horas_del_mes(request.compania, anio, mes).items()}
+        if valores:
+            messages.info(request, f"Horas traídas de {len(valores)} empleado(s) con nómina cerrada en {mes:02d}/{anio}. "
+                                   "Revíselas antes de calcular.")
+        else:
+            messages.warning(request, f"No hay nóminas cerradas cuyo período termine en {mes:02d}/{anio}.")
     filas = [{"e": e, "valor": valores.get(e.pk, ""), "ya": e.pk in ya} for e in empleados]
     return render(
         request,
@@ -247,6 +257,16 @@ def bono(request):
         .exclude(fecha_terminacion__lt=desde)
         .order_by("apellido_paterno", "nombre")
     )
+    if request.method == "GET" and request.GET.get("de_nomina") == "1":
+        from apps.nomina.servicios import datos_bono
+
+        datos_nomina = datos_bono(request.compania, desde, hasta)
+        valores = {k: (str(h), str(s)) for k, (h, s) in datos_nomina.items()}
+        if valores:
+            messages.info(request, f"Horas y salarios traídos de la nómina para {len(valores)} empleado(s) "
+                                   f"({desde:%m/%d/%Y} – {hasta:%m/%d/%Y}). Revíselos antes de calcular.")
+        else:
+            messages.warning(request, "No hay nóminas cerradas en el período del bono.")
     grid = []
     for e in empleados:
         g = guardados.get(e.pk)

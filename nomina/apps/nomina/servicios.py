@@ -138,8 +138,27 @@ def acumulados_por_concepto(resultado) -> dict:
 # --- Cálculo -------------------------------------------------------------------------
 
 
+def es_especial(periodo) -> bool:
+    return periodo.tipo == PeriodoNomina.Tipo.ESPECIAL
+
+
+def horas_trabajadas(entrada) -> Decimal:
+    """
+    Horas trabajadas del período (para licencias y bono). Al asalariado sin horas entradas se le cuentan
+    sus horas regulares por período menos las de licencia.
+    """
+    horas = entrada.horas_trabajadas
+    emp = entrada.empleado
+    if (emp.tipo_pago != "hora" and not entrada.horas_regulares and emp.horas_regulares_periodo
+            and not es_especial(entrada.periodo)):
+        regulares = max(CERO, Decimal(emp.horas_regulares_periodo) - entrada.horas_vacaciones - entrada.horas_enfermedad)
+        horas += regulares
+    return horas
+
+
 def _motor_para_entrada(entrada, parametros, conceptos, anio):
     emp = entrada.empleado
+    especial = es_especial(entrada.periodo)
     tasas = cargar.tasas_compania(entrada.periodo.compania, emp, anio)
     otros = [
         motor.Monto(cargar.concepto_ingreso(i.concepto), i.monto, i.descripcion) for i in entrada.ingresos.all()
@@ -164,8 +183,9 @@ def _motor_para_entrada(entrada, parametros, conceptos, anio):
         otros_ingresos=otros,
         deducciones=deducciones,
         acumulados=acumulados(emp, anio, excluir_periodo=entrada.periodo),
-        semanas_choferil=entrada.semanas_choferil,
+        semanas_choferil=entrada.semanas_choferil if entrada.semanas_choferil is not None else (0 if especial else None),
         conceptos=conceptos,
+        pagar_salario=not especial,
     ), tasas
 
 
@@ -198,7 +218,7 @@ def calcular_periodo(periodo, usuario):
                 periodo=periodo, empleado=emp, empleado_nombre=emp.nombre_completo,
                 numero_empleado=emp.numero_empleado, ssn_ultimos4=emp.ssn_ultimos4,
                 departamento=str(emp.departamento or ""), regimen=emp.regimen_efectivo, tarifa=emp.tarifa,
-                tipo_pago=emp.tipo_pago, horas_trabajadas=entrada.horas_trabajadas,
+                tipo_pago=emp.tipo_pago, horas_trabajadas=horas_trabajadas(entrada),
                 bruto=r.bruto, total_retenciones=r.total_retenciones, total_deducciones=r.total_deducciones,
                 neto=r.neto, total_patronal=r.total_patronal,
                 trib_pr=r.tributables["pr"], trib_ss=r.tributables["ss"], trib_medicare=r.tributables["medicare"],
@@ -313,3 +333,43 @@ def reversar_periodo(periodo, motivo, usuario):
         periodo.motivo_reverso = motivo
         periodo.save(update_fields=["estado", "motivo_reverso"])
     return reverso
+
+
+# --- Datos para licencias y bono ------------------------------------------------------
+
+# Ingresos que no son salario para el bono de Navidad (POR VERIFICAR).
+NO_SALARIO_BONO = ("reembolso", "propinas", "bono_navidad", "mesada", "vacaciones_liquidadas", "enfermedad_liquidada")
+
+
+def _cerrados_por_fin_de_periodo(compania, desde, hasta):
+    """Por la fecha final del período de nómina; los reversos restan."""
+    return ResultadoNomina.objects.filter(
+        periodo__compania=compania, periodo__estado__in=ESTADOS_CERRADOS,
+        periodo__fecha_fin__gte=desde, periodo__fecha_fin__lte=hasta,
+    )
+
+
+def horas_del_mes(compania, anio: int, mes: int) -> dict:
+    """{empleado_id: horas trabajadas} de las nóminas cerradas cuyo período termina en el mes."""
+    desde = date(anio, mes, 1)
+    hasta = date(anio, mes, calendar.monthrange(anio, mes)[1])
+    return {
+        d["empleado"]: Decimal(d["horas"]).quantize(Decimal("0.01"))
+        for d in _cerrados_por_fin_de_periodo(compania, desde, hasta).values("empleado").annotate(horas=Sum("horas_trabajadas"))
+    }
+
+
+def datos_bono(compania, desde, hasta) -> dict:
+    """{empleado_id: (horas, salario)} del período del bono según las nóminas cerradas."""
+    base = _cerrados_por_fin_de_periodo(compania, desde, hasta)
+    horas = {d["empleado"]: d["h"] for d in base.values("empleado").annotate(h=Sum("horas_trabajadas"))}
+    salarios = {
+        d["resultado__empleado"]: d["total"]
+        for d in LineaResultado.objects.filter(resultado__in=base, grupo=LineaResultado.Grupo.INGRESO)
+        .exclude(codigo__in=NO_SALARIO_BONO).values("resultado__empleado").annotate(total=Sum("monto"))
+    }
+    centavo = Decimal("0.01")
+    return {
+        emp: (Decimal(horas.get(emp) or 0).quantize(centavo), Decimal(salarios.get(emp) or 0).quantize(centavo))
+        for emp in set(horas) | set(salarios)
+    }

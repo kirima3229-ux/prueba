@@ -187,7 +187,7 @@ vacaciones y 15 días de enfermedad (configurables).
   empleados 6% sobre un salario máximo de $10,000 (hasta $600), si no 3% (hasta $300). Ley 4: 1,350 h; 2%, hasta
   $600 con más de 20 empleados o $300 con 20 o menos. Se calcula por compañía, se guarda y se exporta a Excel.
 
-En la Fase 3 las horas y los salarios vendrán solos de la nómina procesada.
+Las horas (acumulación mensual) y las horas y salarios (bono) se traen de las nóminas cerradas con el botón *Traer … de la nómina*, y se pueden corregir antes de calcular.
 
 **Calculadora de mesada (Ley 80)** (menú *Simulador → Calculadora de mesada*, o desde la ficha del empleado):
 antes de Ley 4-2017, hasta 5 años 2 meses + 1 semana por año, de 5 a 15 años 3 meses + 2 semanas por año, más de
@@ -249,6 +249,19 @@ nóminas cerradas, por fecha de pago; los reversos restan.
   IRS 941 (mensual o bisemanal según *frecuencia de depósito federal* de la compañía), FUTA, DTRH trimestral
   (desempleo, aportación especial, SINOT, Choferil), CFSE (provisión) y la retención de servicios prestados.
   Fechas **POR VERIFICAR**; se corren al próximo día laborable (feriados federales).
+
+### Importar horas
+
+En la nómina, *Importar horas de Excel* acepta .xlsx o .csv (por ejemplo, lo exportado del reloj ponchador) con
+`numero_empleado` y las columnas de horas, propinas, comisiones y bono. La plantilla trae ya los empleados del
+período. Primero se valida; si hay un error no se cambia nada. Las columnas del archivo reemplazan lo entrado para
+los empleados que aparecen; lo demás no se toca.
+
+### Pagos especiales
+
+Un período **especial** (bono, nómina final) no paga el salario fijo de los asalariados ni cobra semanas de
+Seguro Choferil: sólo lo que se entre. Conceptos nuevos: mesada, vacaciones liquidadas y enfermedad liquidada
+(tratamiento contributivo POR VERIFICAR).
 
 ## Estructura
 

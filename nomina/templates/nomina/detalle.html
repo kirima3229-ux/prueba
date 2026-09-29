@@ -31,7 +31,8 @@
 <form method="post" novalidate>
   {% csrf_token %}
   <input type="hidden" name="accion" value="guardar">
-  <h2>Horas e ingresos</h2>
+  <div class="encabezado"><h2>Horas e ingresos</h2>
+    {% if periodo.editable and user.puede_editar %}<div class="acciones"><a class="boton secundario" href="{% url 'nomina:importar_horas' periodo.pk %}">Importar horas de Excel</a></div>{% endif %}</div>
   <div class="tabla-contenedor">
   <table class="tabla-form tabla-nomina">
     <thead><tr><th>Incl.</th><th>Empleado</th>{% for c in columnas_horas %}<th class="num">{{ c }}</th>{% endfor %}{% for c in columnas_rapidas %}<th class="num">{{ c|capfirst }} $</th>{% endfor %}<th>Otros</th></tr></thead>

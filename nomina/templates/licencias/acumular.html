@@ -8,8 +8,9 @@
   <div class="campo"><label for="mes">Mes</label><select id="mes" name="mes">{% for m in meses %}<option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ m|stringformat:"02d" }}</option>{% endfor %}</select></div>
   <div class="campo"><label for="anio">Año</label><input class="buscar" id="anio" name="anio" type="number" min="2000" max="2100" value="{{ anio }}"></div>
   <button class="boton secundario" type="submit">Cambiar mes</button>
+  <button class="boton" type="submit" name="de_nomina" value="1">Traer horas de la nómina</button>
 </form>
-<p class="texto-suave">Escriba las <strong>horas trabajadas en el mes</strong> por cada empleado. El sistema aplica las reglas del año (horas mínimas, días por mes según el régimen, la antigüedad y el tamaño del patrono, y los topes). En la Fase 3 las horas vendrán solas de la nómina.</p>
+<p class="texto-suave">Escriba las <strong>horas trabajadas en el mes</strong> por cada empleado. El sistema aplica las reglas del año (horas mínimas, días por mes según el régimen, la antigüedad y el tamaño del patrono, y los topes). Con <em>Traer horas de la nómina</em> se llenan con las horas de las nóminas cerradas cuyo período termina en el mes (los asalariados cuentan sus horas regulares por período); puede corregirlas antes de calcular.</p>
 {% for e in errores %}<div class="mensaje error">{{ e }}</div>{% endfor %}
 {% if resultado and not resultado.verificado %}<div class="mensaje warning">Las reglas de {{ anio }} están POR VERIFICAR.</div>{% endif %}
 <form method="post" novalidate>

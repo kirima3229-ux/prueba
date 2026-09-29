@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titulo %}Importar horas{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a> › <a href="{% url 'nomina:detalle' periodo.pk %}">{{ periodo.fecha_inicio|date:"m/d/Y" }} – {{ periodo.fecha_fin|date:"m/d/Y" }}</a></div>
+<div class="encabezado"><h1>Importar horas e ingresos</h1>
+  <div class="acciones"><a class="boton secundario" href="?plantilla=1">Descargar plantilla con los empleados del período</a></div></div>
+<div class="tarjeta">
+  <ol>
+    <li>Descargue la plantilla (ya trae el número y el nombre de cada empleado) o use su propio archivo con los mismos encabezados. La hoja «Instrucciones» explica cada columna.</li>
+    <li>Súbalo con <strong>Solo validar</strong> marcado para revisar sin cambiar nada.</li>
+    <li>Si está bien, desmarque <strong>Solo validar</strong> y súbalo de nuevo.</li>
+  </ol>
+  <p class="texto-suave">Las columnas del archivo reemplazan lo entrado para los empleados que aparecen (celda vacía = 0). Las columnas que no estén en el archivo y los empleados que no aparezcan no cambian.</p>
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% include "_form.html" %}
+    <button class="boton" type="submit">Procesar archivo</button>
+  </form>
+</div>
+{% if resultado %}
+<div class="tarjeta">
+  <h2>Resultado</h2>
+  {% if resultado.errores %}
+    <div class="mensaje error">Se encontraron {{ resultado.errores|length }} error(es). <strong>No se cambió nada.</strong></div>
+    <div class="tabla-contenedor"><table>
+      <thead><tr><th>Fila</th><th>Columna</th><th>Error</th></tr></thead>
+      <tbody>{% for e in resultado.errores %}<tr><td>{{ e.fila }}</td><td class="mono">{{ e.columna|default:"—" }}</td><td>{{ e.mensaje }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  {% elif resultado.total_filas == 0 %}
+    <div class="mensaje warning">El archivo no tiene filas.</div>
+  {% else %}
+    <div class="mensaje success">Las {{ resultado.total_filas }} fila(s) son válidas. Desmarque «Solo validar» y súbalo de nuevo para aplicarlas.</div>
+    <div class="tabla-contenedor"><table>
+      <thead><tr><th>Empleado</th>{% for c in resultado.columnas_usadas %}<th class="num mono">{{ c }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for entrada, valores in resultado.vista %}<tr><td>{{ entrada.empleado.nombre_completo }}</td>{% for c, v in valores.items %}<td class="num">{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table></div>
+  {% endif %}
+  {% if resultado.columnas_desconocidas %}<p class="texto-suave">Columnas ignoradas: {{ resultado.columnas_desconocidas|join:", " }}</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

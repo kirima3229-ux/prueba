@@ -281,10 +281,12 @@ def calcular(
     acumulados: Acumulados = Acumulados(),
     semanas_choferil: int | None = None,
     conceptos: dict | None = None,
+    pagar_salario: bool = True,
 ) -> Resultado:
     """
     `conceptos` = {codigo: Concepto} para los ingresos que genera el motor
     (regular, horas_extra, vacaciones, enfermedad). Si falta, todos tributan.
+    `pagar_salario=False` (pagos especiales: bono, nómina final) no paga el salario fijo del asalariado.
     """
     if frecuencia not in PERIODOS_POR_ANIO:
         raise ErrorCalculo(f"Frecuencia de pago desconocida: {frecuencia}")
@@ -302,9 +304,11 @@ def calcular(
     if empleado.tipo_pago == "hora":
         monto = redondear(Decimal(horas.regulares) * Decimal(empleado.tarifa))
         explic = f"{horas.regulares} horas × {dinero(empleado.tarifa)} = {dinero(monto)}"
-    else:
+    elif pagar_salario:
         monto = redondear(empleado.tarifa)
         explic = f"Salario del período {dinero(monto)}"
+    else:
+        monto, explic = CERO, ""
     if monto:
         ingresos.append(Monto(concepto("regular", "Salario regular"), monto, explic))
 
@@ -474,8 +478,8 @@ def calcular(
                               f"{dinero(base_sinot)} × {pct(tasas.sinot_patrono)} (tope {dinero(p.sinot_tope)})"))
 
     # 9. Seguro Choferil (cuota fija por semana)
-    if empleado.aplica_choferil:
-        semanas = semanas_choferil if semanas_choferil is not None else SEMANAS_CHOFERIL[frecuencia]
+    semanas = semanas_choferil if semanas_choferil is not None else SEMANAS_CHOFERIL[frecuencia]
+    if empleado.aplica_choferil and semanas:
         r.retenciones.append(Linea("choferil_empleado", "Seguro Choferil", redondear(p.choferil_empleado_semanal * semanas),
                                    explicacion=f"{semanas} semana(s) × {dinero(p.choferil_empleado_semanal)}"))
         r.patronales.append(Linea("choferil_patrono", "Seguro Choferil patronal", redondear(p.choferil_patrono_semanal * semanas),
