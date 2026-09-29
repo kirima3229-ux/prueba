@@ -11,7 +11,15 @@ from apps.core.permisos import requiere_admin, requiere_edicion
 
 from .forms import ClasificacionCFSEForm, CompaniaForm, DepartamentoForm, TasaCFSEForm, TasasCompaniaForm
 from .middleware import CLAVE_SESION
-from .models import ClasificacionCFSE, Departamento, EstadoVerificacion, TasaCFSE, TasasCompania
+from .models import (
+    ClasificacionCFSE,
+    Departamento,
+    EstadoVerificacion,
+    LogoCompania,
+    TasaCFSE,
+    TasasCompania,
+    logo_de,
+)
 
 
 def _compania_accesible(request, pk):
@@ -52,6 +60,7 @@ def detalle(request, pk):
             "clasificaciones": compania.clasificaciones_cfse.prefetch_related("tasas"),
             "activos": compania.empleados.filter(activo=True).count(),
             "historial": historial,
+            "logo": logo_de(compania),
         },
     )
 
@@ -196,3 +205,54 @@ def tasa_cfse_form(request, pk, cls_pk, tasa_pk=None):
         "companias/catalogo_form.html",
         {"form": form, "compania": compania, "titulo": f"Tasa CFSE — {clasificacion}"},
     )
+
+
+# --- Logo ---------------------------------------------------------------------------------
+
+
+def logo(request, pk):
+    """La imagen del logo (sólo para quien tiene acceso a la compañía)."""
+    from django.http import Http404, HttpResponse
+
+    compania = _compania_accesible(request, pk)
+    registro = logo_de(compania)
+    if registro is None:
+        raise Http404
+    respuesta = HttpResponse(bytes(registro.imagen), content_type="image/png")
+    respuesta["Cache-Control"] = "private, max-age=300"
+    return respuesta
+
+
+@requiere_admin
+@require_POST
+def logo_subir(request, pk):
+    from .logo import ErrorLogo, procesar
+
+    compania = _compania_accesible(request, pk)
+    archivo = request.FILES.get("logo")
+    if archivo is None:
+        messages.error(request, "Seleccione una imagen PNG o JPG.")
+        return redirect("companias:detalle", pk=compania.pk)
+    try:
+        imagen, ancho, alto = procesar(archivo)
+    except ErrorLogo as e:
+        messages.error(request, str(e))
+        return redirect("companias:detalle", pk=compania.pk)
+    habia = logo_de(compania) is not None
+    LogoCompania.objects.update_or_create(
+        compania=compania, defaults={"imagen": imagen, "ancho": ancho, "alto": alto, "actualizado_por": request.user}
+    )
+    registrar(request, Accion.LOGO_COMPANIA, objeto=compania, compania=compania,
+              descripcion=f"Logo {'reemplazado' if habia else 'añadido'} ({archivo.name[:80]}, {ancho}×{alto})")
+    messages.success(request, "Logo guardado. Aparecerá en los talonarios y avisos de depósito.")
+    return redirect("companias:detalle", pk=compania.pk)
+
+
+@requiere_admin
+@require_POST
+def logo_borrar(request, pk):
+    compania = _compania_accesible(request, pk)
+    if LogoCompania.objects.filter(compania=compania).delete()[0]:
+        registrar(request, Accion.LOGO_COMPANIA, objeto=compania, compania=compania, descripcion="Logo eliminado")
+        messages.success(request, "Logo eliminado. Los talonarios saldrán sin logo.")
+    return redirect("companias:detalle", pk=compania.pk)

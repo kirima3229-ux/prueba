@@ -211,3 +211,27 @@ class TasaCFSE(models.Model):
 
     def __str__(self):
         return f"CFSE {self.clasificacion.codigo} {self.anio}: {self.tasa_por_100} por $100"
+
+
+class LogoCompania(models.Model):
+    """
+    Logo opcional de la compañía para talonarios y avisos. Se guarda en la base de datos (entra en los
+    respaldos) como PNG vuelto a generar por el sistema: nunca el archivo tal como se subió.
+    """
+
+    compania = models.OneToOneField(Compania, on_delete=models.CASCADE, related_name="logo")
+    imagen = models.BinaryField()
+    ancho = models.PositiveIntegerField()
+    alto = models.PositiveIntegerField()
+    actualizado = models.DateTimeField(auto_now=True)
+    actualizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    def __str__(self):
+        return f"Logo de {self.compania}"
+
+
+def logo_de(compania):
+    """El logo de la compañía o None."""
+    return LogoCompania.objects.filter(compania=compania).first() if compania is not None else None

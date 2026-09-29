@@ -15,6 +15,7 @@ from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 
+from apps.companias.logo import escala, para_pdf
 from apps.core.letras import monto_en_letras
 from apps.licencias.models import saldo
 
@@ -49,6 +50,16 @@ class _Hoja:
             self.c.drawString(px, py, texto)
 
 
+def _logo(h, logo, x, y_arriba, max_ancho, max_alto) -> float:
+    """Dibuja el logo con su esquina superior izquierda en (x, y_arriba) pulgadas. Devuelve el ancho usado."""
+    if logo is None:
+        return 0.0
+    w, alto_pt = escala(logo.ancho, logo.alto, max_ancho * inch, max_alto * inch)
+    px, py = h.xy(x, y_arriba)
+    h.c.drawImage(logo.lector, px, py - alto_pt, width=w, height=alto_pt, mask="auto")
+    return w / inch
+
+
 def _secciones(formato):
     cheque = {"arriba": 0, "medio": 1, "abajo": 2}[formato.posicion]
     return cheque, [s for s in (0, 1, 2) if s != cheque]
@@ -59,19 +70,23 @@ def _direccion(empleado):
     return [l for l in [empleado.direccion_linea1, empleado.direccion_linea2, ciudad] if l]
 
 
-def _encabezado_compania(h, compania, numero=None):
-    h.texto(0.45, 0.42, compania.nombre, 11, negrita=True)
+def _encabezado_compania(h, compania, numero=None, logo=None):
+    x = 0.45
+    usado = _logo(h, logo, x, 0.25, 1.6, 0.6)
+    if usado:
+        x += usado + 0.12
+    h.texto(x, 0.42, compania.nombre, 11, negrita=True)
     ciudad = " ".join(p for p in [compania.ciudad, compania.estado, compania.codigo_postal] if p)
     for i, linea in enumerate(l for l in [compania.direccion_linea1, compania.direccion_linea2, ciudad] if l):
-        h.texto(0.45, 0.58 + i * 0.14, linea, 8)
+        h.texto(x, 0.58 + i * 0.14, linea, 8)
     if numero is not None:
         h.texto(8.05, 0.42, str(numero), 11, negrita=True, derecha=True)
 
 
-def _cheque(h, formato, cheque, resultado):
+def _cheque(h, formato, cheque, resultado, logo=None):
     periodo = resultado.periodo
     if formato.imprimir_encabezado:
-        _encabezado_compania(h, periodo.compania, cheque.numero)
+        _encabezado_compania(h, periodo.compania, cheque.numero, logo)
     h.texto(6.9, 0.95, f"{cheque.fecha:%m/%d/%Y}", 10)
     h.texto(1.0, 1.38, cheque.beneficiario, 10)
     h.texto(7.95, 1.38, f"**{cheque.monto:,.2f}", 11, negrita=True, derecha=True)
@@ -87,9 +102,9 @@ def _cheque(h, formato, cheque, resultado):
     h.texto(0.6, 2.98, f"Nómina {periodo.fecha_inicio:%m/%d/%Y} – {periodo.fecha_fin:%m/%d/%Y}", 8)
 
 
-def _aviso_deposito(h, resultado):
+def _aviso_deposito(h, resultado, logo=None):
     empleado = resultado.empleado
-    _encabezado_compania(h, resultado.periodo.compania)
+    _encabezado_compania(h, resultado.periodo.compania, logo=logo)
     h.texto(4.25, 1.2, "AVISO DE DEPÓSITO DIRECTO", 14, negrita=True, centro=True)
     h.texto(4.25, 1.45, "NO NEGOCIABLE — ESTE DOCUMENTO NO ES UN CHEQUE", 9, centro=True)
     h.texto(0.8, 2.0, f"Depositado a: {resultado.empleado_nombre}", 10)
@@ -130,10 +145,11 @@ def _filas(lineas, ytd, grupos):
     return filas
 
 
-def _talonario(h, formato, resultado, datos, rotulo, pago):
+def _talonario(h, formato, resultado, datos, rotulo, pago, logo=None):
     periodo = resultado.periodo
     compania = periodo.compania
-    h.texto(0.4, 0.3, compania.nombre, 9, negrita=True)
+    usado = _logo(h, logo, 0.4, 0.1, 1.3, 0.28)
+    h.texto(0.4 + (usado + 0.1 if usado else 0), 0.3, compania.nombre, 9, negrita=True)
     h.texto(8.1, 0.3, rotulo, 8, derecha=True)
     h.texto(0.4, 0.48, f"{resultado.empleado_nombre} (núm. {resultado.numero_empleado}) · SSN XXX-XX-{resultado.ssn_ultimos4}"
                        + (f" · {resultado.departamento}" if resultado.departamento else ""), 8)
@@ -170,17 +186,17 @@ def _datos_talonario(resultado):
     }
 
 
-def _pagina(c, formato, resultado, cheque):
+def _pagina(c, formato, resultado, cheque, logo=None):
     s_cheque, s_talonarios = _secciones(formato)
     if cheque:
-        _cheque(_Hoja(c, formato, s_cheque), formato, cheque, resultado)
+        _cheque(_Hoja(c, formato, s_cheque), formato, cheque, resultado, logo)
         pago = f"Cheque núm. {cheque.numero}" + (f" · {formato.nombre_cuenta}" if formato.nombre_cuenta else "")
     else:
-        _aviso_deposito(_Hoja(c, formato, s_cheque), resultado)
+        _aviso_deposito(_Hoja(c, formato, s_cheque), resultado, logo)
         pago = f"Depósito directo {resultado.empleado.cuenta_enmascarada}"
     datos = _datos_talonario(resultado)
     for seccion, rotulo in zip(s_talonarios, ("TALONARIO DEL EMPLEADO", "COPIA PARA EL PATRONO")):
-        _talonario(_Hoja(c, formato, seccion), formato, resultado, datos, rotulo, pago)
+        _talonario(_Hoja(c, formato, seccion), formato, resultado, datos, rotulo, pago, logo)
     c.showPage()
 
 
@@ -193,16 +209,18 @@ def _documento(titulo):
 
 def generar_cheques(formato, cheques) -> bytes:
     salida, c = _documento("Cheques de nómina")
+    logo = para_pdf(formato.compania)
     for cheque in cheques:
-        _pagina(c, formato, cheque.resultado, cheque)
+        _pagina(c, formato, cheque.resultado, cheque, logo)
     c.save()
     return salida.getvalue()
 
 
 def generar_avisos(formato, resultados) -> bytes:
     salida, c = _documento("Avisos de depósito directo")
+    logo = para_pdf(formato.compania)
     for resultado in resultados:
-        _pagina(c, formato, resultado, None)
+        _pagina(c, formato, resultado, None, logo)
     c.save()
     return salida.getvalue()
 
@@ -226,7 +244,7 @@ def generar_prueba(formato, compania) -> bytes:
     resultado = SimpleNamespace(empleado=empleado, periodo=periodo)
     cheque = SimpleNamespace(numero=formato.siguiente_numero, fecha=date.today(), beneficiario="NOMBRE DEL EMPLEADO",
                              monto=Decimal("1234.56"))
-    _cheque(h, formato, cheque, resultado)
+    _cheque(h, formato, cheque, resultado, para_pdf(compania))
     c.setFillColor(colors.red)
     h.texto(4.25, 2.6, "PRUEBA DE ALINEACIÓN — NO NEGOCIABLE", 12, negrita=True, centro=True)
     c.setFillColor(colors.black)

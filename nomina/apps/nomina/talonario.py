@@ -7,8 +7,9 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from apps.companias.logo import escala, para_pdf
 from apps.licencias.models import saldo
 
 from .servicios import acumulados_por_concepto
@@ -48,17 +49,26 @@ def _tabla_conceptos(titulo, lineas, ytd, grupo):
     return tabla
 
 
-def _talonario(resultado, estilos):
+def _encabezado(compania, estilos, logo):
+    titulo = estilos["Title"].clone("titulo", fontSize=14, textColor=AZUL, spaceAfter=2, alignment=0)
+    texto = [Paragraph(compania.nombre, titulo)]
+    direccion = " ".join(p for p in [compania.direccion_linea1, compania.ciudad, compania.estado, compania.codigo_postal] if p)
+    if direccion:
+        texto.append(Paragraph(direccion, estilos["Normal"]))
+    if logo is None:
+        return texto
+    w, h = escala(logo.ancho, logo.alto, 1.8 * inch, 0.75 * inch)
+    tabla = Table([[Image(io.BytesIO(logo.datos), width=w, height=h), texto]], colWidths=[w + 0.15 * inch, None])
+    tabla.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (0, 0), 0)]))
+    return [tabla]
+
+
+def _talonario(resultado, estilos, logo=None):
     periodo = resultado.periodo
     compania = periodo.compania
     ytd = acumulados_por_concepto(resultado)
     lineas = list(resultado.lineas.all())
-    elementos = []
-    titulo = estilos["Title"].clone("titulo", fontSize=14, textColor=AZUL, spaceAfter=2, alignment=0)
-    elementos.append(Paragraph(compania.nombre, titulo))
-    direccion = " ".join(p for p in [compania.direccion_linea1, compania.ciudad, compania.estado, compania.codigo_postal] if p)
-    if direccion:
-        elementos.append(Paragraph(direccion, estilos["Normal"]))
+    elementos = _encabezado(compania, estilos, logo)
     if periodo.tipo == "reverso":
         elementos.append(Paragraph("<b>REVERSO</b> — este documento anula un pago anterior.", estilos["Normal"]))
     elementos.append(Spacer(1, 8))
@@ -118,9 +128,10 @@ def generar_pdf(resultados) -> bytes:
                             topMargin=0.7 * inch, bottomMargin=0.7 * inch, title="Talonarios de pago")
     estilos = getSampleStyleSheet()
     elementos = []
+    logo = para_pdf(resultados[0].periodo.compania) if resultados else None
     for i, resultado in enumerate(resultados):
         if i:
             elementos.append(PageBreak())
-        elementos += _talonario(resultado, estilos)
+        elementos += _talonario(resultado, estilos, logo)
     doc.build(elementos)
     return salida.getvalue()

@@ -25,6 +25,7 @@ class Accion(models.TextChoices):
     USUARIO_MODIFICADO = "usuario_modificado", "Usuario modificado"
     COMPANIA_CREADA = "compania_creada", "Compañía creada"
     COMPANIA_MODIFICADA = "compania_modificada", "Compañía modificada"
+    LOGO_COMPANIA = "logo_compania", "Logo de la compañía modificado"
     TASAS_MODIFICADAS = "tasas_modificadas", "Tasas modificadas"
     CATALOGO_MODIFICADO = "catalogo_modificado", "Catálogo modificado"
     EMPLEADO_CREADO = "empleado_creado", "Empleado creado"

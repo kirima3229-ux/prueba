@@ -210,3 +210,6 @@ table.tabla-form input, table.tabla-form select { width: 100%; padding: 0.35rem 
 .pestanas a.activo { color: var(--primario); border-bottom-color: var(--primario); font-weight: 600; }
 .tabla-reporte td, .tabla-reporte th { white-space: nowrap; font-size: 0.9rem; }
 .tabla-reporte td.pct { color: var(--texto-suave); font-size: 0.82rem; padding-left: 0.2rem; }
+
+/* Logo de la compañía */
+.logo-compania { max-width: 260px; max-height: 110px; background: #fff; border: 1px solid var(--borde); border-radius: var(--radio); padding: 0.4rem; }

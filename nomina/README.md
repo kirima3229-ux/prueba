@@ -296,6 +296,14 @@ escriben los montos, *Ver retenciones* muestra la retención (10% después de lo
 *Registrar pagos* los guarda como pagos de servicios (origen «Ciclo de nómina»). Quedan en el informe trimestral,
 en los depósitos de retención y en *Impuestos a pagar*.
 
+### Logo de la compañía (opcional)
+
+En la ficha de la compañía, un administrador puede subir el logo (PNG o JPG, hasta 2 MB). Sale en los talonarios
+PDF, en los talonarios de los cheques, en los avisos de depósito directo y en el encabezado del cheque cuando se
+imprime el nombre de la compañía. El sistema valida la imagen, la reduce si es muy grande y guarda una copia PNG
+generada por él (sin metadatos), en la base de datos, así que entra en los respaldos. Se puede cambiar o quitar en
+cualquier momento; queda en la bitácora.
+
 ## Estructura
 
 ```

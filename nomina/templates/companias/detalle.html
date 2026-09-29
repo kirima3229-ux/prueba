@@ -24,6 +24,30 @@
 </div>
 
 <div class="tarjeta">
+  <h2>Logo para talonarios</h2>
+  {% if logo %}
+    <p><img class="logo-compania" src="{% url 'companias:logo' compania.pk %}?v={{ logo.actualizado|date:'U' }}" alt="Logo de {{ compania.nombre }}"></p>
+    <p class="texto-suave">Aparece en los talonarios, en los talonarios de los cheques y en los avisos de depósito directo.</p>
+  {% else %}
+    <p class="texto-suave">Opcional. Si sube un logo, aparecerá en los talonarios, en los talonarios de los cheques y en los avisos de depósito directo.</p>
+  {% endif %}
+  {% if user.es_admin %}
+  <form method="post" action="{% url 'companias:logo_subir' compania.pk %}" enctype="multipart/form-data" class="en-linea">
+    {% csrf_token %}
+    <label for="logo">{% if logo %}Cambiar logo{% else %}Subir logo{% endif %} (PNG o JPG, hasta 2 MB)</label>
+    <input type="file" id="logo" name="logo" accept="image/png,image/jpeg" required>
+    <button class="boton secundario" type="submit">Guardar logo</button>
+  </form>
+  {% if logo %}
+  <form method="post" action="{% url 'companias:logo_borrar' compania.pk %}" class="en-linea" data-confirmar="¿Quitar el logo? Los talonarios saldrán sin logo.">
+    {% csrf_token %}<button class="boton pequeno peligro" type="submit">Quitar logo</button>
+  </form>
+  {% endif %}
+  <p class="texto-suave"><small>Recomendado: fondo transparente o blanco, más ancho que alto. El sistema lo reduce si es muy grande.</small></p>
+  {% endif %}
+</div>
+
+<div class="tarjeta">
   <div class="encabezado"><h2>Tasas por año</h2>
     {% if user.es_admin %}<a class="boton pequeno" href="{% url 'companias:tasas_nuevas' compania.pk %}">Añadir año</a>{% endif %}</div>
   <div class="tabla-contenedor"><table>
