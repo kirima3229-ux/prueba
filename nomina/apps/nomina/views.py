@@ -2,6 +2,7 @@ from decimal import Decimal, InvalidOperation
 
 from django import forms
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import HttpResponse
@@ -9,7 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.auditoria.models import RegistroAuditoria
-from apps.auditoria.servicios import Accion, registrar
+from apps.auditoria.servicios import Accion, diferencias, instantanea, registrar
 from apps.calculo import cargar
 from apps.core import hojas
 from apps.core.permisos import requiere_admin, requiere_compania, requiere_edicion
@@ -17,13 +18,15 @@ from apps.empleados.forms import FechaInput
 from apps.empleados.models import Empleado
 from apps.parametros.models import ConceptoDeduccion, ConceptoIngreso
 
-from . import servicios, talonario
+from . import cheques, pdf_cheques, servicios, talonario
 from .models import (
+    Cheque,
     DeduccionRecurrente,
     EntradaDeduccion,
     EntradaIngreso,
     EntradaNomina,
     ErrorNominaCerrada,
+    FormatoCheque,
     PeriodoNomina,
 )
 
@@ -388,3 +391,132 @@ def deducciones_empleado(request, pk):
             return redirect("nomina:deducciones_empleado", pk=emp.pk)
     return render(request, "nomina/deducciones.html",
                   {"empleado": emp, "deducciones": emp.deducciones_recurrentes.select_related("concepto"), "form": form})
+
+
+# --- Cheques ---------------------------------------------------------------------------
+
+
+class FormatoChequeForm(forms.ModelForm):
+    class Meta:
+        model = FormatoCheque
+        fields = ["posicion", "idioma", "siguiente_numero", "ajuste_horizontal", "ajuste_vertical",
+                  "imprimir_encabezado", "nombre_cuenta"]
+
+
+@requiere_compania
+@requiere_edicion
+def formato_cheque(request):
+    formato = cheques.formato_de(request.compania)
+    antes = instantanea(formato)
+    form = FormatoChequeForm(request.POST or None, instance=formato)
+    if request.method == "POST" and form.is_valid():
+        formato = form.save()
+        cambios = diferencias(antes, instantanea(formato))
+        if cambios:
+            registrar(request, Accion.FORMATO_CHEQUE, objeto=request.compania, cambios=cambios)
+        messages.success(request, "Formato de cheques guardado.")
+        return redirect("nomina:formato_cheque")
+    return render(request, "nomina/formato_cheque.html", {"form": form, "formato": formato})
+
+
+@requiere_compania
+@requiere_edicion
+def prueba_alineacion(request):
+    formato = cheques.formato_de(request.compania)
+    return _pdf(pdf_cheques.generar_prueba(formato, request.compania), "prueba_alineacion.pdf")
+
+
+def _entero(texto):
+    texto = (texto or "").strip()
+    return int(texto) if texto.isdigit() else None
+
+
+@requiere_compania
+def cheques_periodo(request, pk):
+    periodo = _periodo(request, pk)
+    formato = cheques.formato_de(request.compania)
+    resultados = list(
+        periodo.resultados.select_related("empleado").prefetch_related("cheques").order_by("empleado_nombre")
+    )
+    if request.method == "POST":
+        if not request.user.puede_editar:
+            raise PermissionDenied("No tiene permiso para esta acción.")
+        accion = request.POST.get("accion")
+        try:
+            if accion == "emitir":
+                elegidos = [r for r in resultados if request.POST.get(f"r_{r.pk}")]
+                emitidos = cheques.emitir(periodo, elegidos, _entero(request.POST.get("primer_numero")), request.user)
+                registrar(request, Accion.CHEQUE_EMITIDO, objeto=periodo,
+                          descripcion=f"Cheques núm. {emitidos[0].numero}–{emitidos[-1].numero}",
+                          cambios={str(c.numero): {"beneficiario": c.beneficiario, "monto": c.monto} for c in emitidos})
+                messages.success(request, f"{len(emitidos)} cheque(s) emitido(s). Ponga el papel de cheques en la "
+                                          f"impresora empezando por el núm. {emitidos[0].numero} e imprima.")
+            elif accion in ("anular", "reemitir"):
+                cheque = get_object_or_404(Cheque, pk=request.POST.get("cheque"), periodo=periodo)
+                motivo = request.POST.get("motivo", "")
+                if accion == "anular":
+                    cheques.anular(cheque, motivo, request.user)
+                    nuevo = None
+                else:
+                    nuevo = cheques.reemitir(cheque, motivo, request.user, _entero(request.POST.get("numero")))
+                registrar(request, Accion.CHEQUE_ANULADO, objeto=periodo, descripcion=cheque.motivo_anulacion,
+                          cambios={"cheque": cheque.numero, "monto": cheque.monto, "beneficiario": cheque.beneficiario,
+                                   **({"reemplazo": nuevo.numero} if nuevo else {})})
+                if nuevo:
+                    registrar(request, Accion.CHEQUE_EMITIDO, objeto=periodo,
+                              descripcion=f"Cheque núm. {nuevo.numero} (reemplaza el {cheque.numero})",
+                              cambios={str(nuevo.numero): {"beneficiario": nuevo.beneficiario, "monto": nuevo.monto}})
+                    messages.success(request, f"Cheque {cheque.numero} anulado. Nuevo cheque núm. {nuevo.numero}.")
+                else:
+                    messages.success(request, f"Cheque {cheque.numero} anulado.")
+        except cheques.ErrorCheque as e:
+            messages.error(request, str(e))
+        return redirect("nomina:cheques", pk=periodo.pk)
+    filas = []
+    for r in resultados:
+        todos = sorted(r.cheques.all(), key=lambda c: c.numero)
+        filas.append({"resultado": r, "vigente": cheques.vigente(r), "anulados": [c for c in todos if c.estado == "anulado"],
+                      "sugerido": cheques.por_cheque_sugerido(r)})
+    pendientes = [f for f in filas if not f["vigente"] and f["resultado"].neto > 0]
+    return render(request, "nomina/cheques.html", {
+        "periodo": periodo, "formato": formato, "filas": filas, "pendientes": pendientes,
+        "puede": request.user.puede_editar and periodo.estado == "cerrada" and periodo.tipo != "reverso",
+        "hay_vigentes": any(f["vigente"] for f in filas),
+        "hay_depositos": any(f["resultado"].empleado.deposito_directo and not f["vigente"] and f["resultado"].neto > 0
+                             for f in filas),
+    })
+
+
+@requiere_compania
+@requiere_edicion
+def cheques_pdf(request, pk):
+    periodo = _periodo(request, pk)
+    emitidos = (Cheque.objects.filter(periodo=periodo, estado=Cheque.Estado.EMITIDO)
+                .select_related("resultado__empleado", "resultado__periodo__compania")
+                .prefetch_related("resultado__lineas"))
+    numero = _entero(request.GET.get("cheque"))
+    if numero is not None:
+        emitidos = emitidos.filter(numero=numero)
+    emitidos = list(emitidos)
+    if not emitidos:
+        messages.error(request, "No hay cheques emitidos para imprimir.")
+        return redirect("nomina:cheques", pk=periodo.pk)
+    registrar(request, Accion.ARCHIVO_GENERADO, objeto=periodo,
+              descripcion="Cheques impresos núm. " + ", ".join(str(c.numero) for c in emitidos))
+    return _pdf(pdf_cheques.generar_cheques(cheques.formato_de(request.compania), emitidos),
+                f"cheques_{periodo.fecha_pago:%Y%m%d}.pdf")
+
+
+@requiere_compania
+def avisos_deposito(request, pk):
+    periodo = _periodo(request, pk)
+    resultados = [
+        r for r in periodo.resultados.select_related("empleado", "periodo__compania").prefetch_related("lineas", "cheques")
+        if r.empleado.deposito_directo and r.neto > 0 and not cheques.vigente(r)
+    ]
+    if periodo.estado != "cerrada" or periodo.tipo == "reverso" or not resultados:
+        messages.error(request, "No hay avisos de depósito para imprimir (la nómina debe estar cerrada).")
+        return redirect("nomina:cheques", pk=periodo.pk)
+    registrar(request, Accion.ARCHIVO_GENERADO, objeto=periodo, descripcion=f"Avisos de depósito ({len(resultados)})")
+    return _pdf(pdf_cheques.generar_avisos(cheques.formato_de(request.compania), resultados),
+                f"avisos_deposito_{periodo.fecha_pago:%Y%m%d}.pdf")

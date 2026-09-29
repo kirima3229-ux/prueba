@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Cheques {{ periodo.fecha_pago|date:"m/d/Y" }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a> › <a href="{% url 'nomina:detalle' periodo.pk %}">{{ periodo.fecha_inicio|date:"m/d/Y" }} – {{ periodo.fecha_fin|date:"m/d/Y" }}</a></div>
+<div class="encabezado">
+  <h1>Cheques y talonarios · pago {{ periodo.fecha_pago|date:"m/d/Y" }} {% include "nomina/_estado.html" with p=periodo %}</h1>
+  <div class="acciones">
+    {% if hay_vigentes and user.puede_editar %}<a class="boton" href="{% url 'nomina:cheques_pdf' periodo.pk %}" target="_blank">Imprimir cheques</a>{% endif %}
+    {% if hay_depositos %}<a class="boton secundario" href="{% url 'nomina:avisos_deposito' periodo.pk %}" target="_blank">Avisos de depósito directo</a>{% endif %}
+    {% if user.puede_editar %}<a class="boton secundario" href="{% url 'nomina:formato_cheque' %}">Formato de cheques</a>{% endif %}
+  </div>
+</div>
+{% if periodo.estado != "cerrada" or periodo.tipo == "reverso" %}
+<div class="mensaje warning">Los cheques se emiten cuando la nómina está aprobada y cerrada.{% if periodo.estado == "reversada" %} Esta nómina fue reversada: sus cheques quedaron anulados.{% endif %}</div>
+{% endif %}
+<p class="texto-suave">Papel de cheque tipo voucher (carta, cheque {{ formato.get_posicion_display|lower }} y dos talonarios: uno para el empleado y otro para el archivo del patrono). El papel debe traer preimpresos el banco, la línea MICR y el número del cheque. Los empleados con depósito directo reciben un aviso de depósito que se imprime en papel blanco.</p>
+
+{% if puede and pendientes %}
+<form method="post" class="tarjeta" novalidate>
+  {% csrf_token %}<input type="hidden" name="accion" value="emitir">
+  <h2>Emitir cheques</h2>
+  <table>
+    <thead><tr><th>Cheque</th><th>Empleado</th><th>Forma de pago</th><th class="num">Neto</th></tr></thead>
+    <tbody>
+    {% for f in pendientes %}{% with r=f.resultado %}
+    <tr>
+      <td><input type="checkbox" name="r_{{ r.pk }}" id="r_{{ r.pk }}" {% if f.sugerido %}checked{% endif %}></td>
+      <td><label for="r_{{ r.pk }}">{{ r.empleado_nombre }}</label>{% if f.anulados %} <small class="texto-suave">(anulado{{ f.anulados|pluralize }}: {% for c in f.anulados %}{{ c.numero }}{% if not forloop.last %}, {% endif %}{% endfor %})</small>{% endif %}</td>
+      <td>{% if r.empleado.deposito_directo %}Depósito directo {{ r.empleado.cuenta_enmascarada }}{% else %}Cheque{% endif %}</td>
+      <td class="num">${{ r.neto|floatformat:2|intcomma }}</td>
+    </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+  </table>
+  <div class="campo"><label for="primer_numero">Número del primer cheque (el de la primera hoja en la impresora) *</label>
+    <input id="primer_numero" name="primer_numero" value="{{ formato.siguiente_numero }}" inputmode="numeric" required></div>
+  <p class="texto-suave">Los números se asignan en orden alfabético del empleado. Marque a un empleado de depósito directo sólo si esta vez se le paga con cheque.</p>
+  <button class="boton" type="submit">Emitir cheques seleccionados</button>
+</form>
+{% endif %}
+
+<h2>Cheques del período</h2>
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th class="num">Núm.</th><th>Beneficiario</th><th>Fecha</th><th class="num">Monto</th><th>Estado</th><th></th></tr></thead>
+  <tbody>
+  {% for f in filas %}{% for c in f.anulados %}
+  <tr class="texto-suave"><td class="num">{{ c.numero }}</td><td>{{ c.beneficiario }}</td><td>{{ c.fecha|date:"m/d/Y" }}</td><td class="num">${{ c.monto|floatformat:2|intcomma }}</td>
+    <td><span class="etiqueta gris">Anulado</span> <small>{{ c.motivo_anulacion }}</small></td><td></td></tr>
+  {% endfor %}{% if f.vigente %}{% with c=f.vigente %}
+  <tr><td class="num"><strong>{{ c.numero }}</strong></td><td>{{ c.beneficiario }}</td><td>{{ c.fecha|date:"m/d/Y" }}</td><td class="num">${{ c.monto|floatformat:2|intcomma }}</td>
+    <td><span class="etiqueta verde">Emitido</span></td>
+    <td>{% if user.puede_editar %}
+      <a class="boton pequeno secundario" href="{% url 'nomina:cheques_pdf' periodo.pk %}?cheque={{ c.numero }}" target="_blank">Imprimir</a>
+      <form class="en-linea" method="post" data-confirmar="¿Anular el cheque {{ c.numero }}?">{% csrf_token %}
+        <input type="hidden" name="cheque" value="{{ c.pk }}">
+        <label class="oculto" for="motivo_{{ c.pk }}">Motivo</label>
+        <input id="motivo_{{ c.pk }}" name="motivo" placeholder="Motivo (p. ej. se dañó al imprimir)" required maxlength="300">
+        <button class="boton pequeno secundario" type="submit" name="accion" value="reemitir" title="Anula este número y emite el cheque con el próximo número ({{ formato.siguiente_numero }})">Anular y reemitir</button>
+        <button class="boton pequeno peligro" type="submit" name="accion" value="anular">Sólo anular</button>
+      </form>
+    {% endif %}</td></tr>
+  {% endwith %}{% endif %}{% endfor %}
+  {% if not hay_vigentes and not filas %}<tr><td colspan="6" class="vacio">Sin resultados en este período.</td></tr>{% endif %}
+  </tbody>
+</table>
+</div>
+<p class="texto-suave">Un número de cheque usado no se vuelve a usar aunque se anule. Todo queda en la bitácora de auditoría.</p>
+{% endblock %}

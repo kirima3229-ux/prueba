@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Formato de cheques{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a></div>
+<div class="encabezado"><h1>Formato de cheques</h1>
+  <div class="acciones"><a class="boton secundario" href="{% url 'nomina:prueba_alineacion' %}" target="_blank">Imprimir prueba de alineación</a></div>
+</div>
+<div class="tarjeta">
+  <p>Use papel de cheque <strong>tipo voucher</strong> tamaño carta (el mismo que usa QuickBooks: cheque y dos talonarios, perforados a 3½" y 7"), con el banco, la línea MICR y el número ya preimpresos.</p>
+  <ol>
+    <li>Imprima la <em>prueba de alineación</em> en papel blanco, al 100 % (sin «ajustar a la página»).</li>
+    <li>Póngala sobre una hoja de cheques y mírela contra la luz.</li>
+    <li>Si la fecha, el nombre o el monto no caen en su sitio, cambie los ajustes (en pulgadas) y repita.</li>
+  </ol>
+</div>
+<form method="post" class="tarjeta" novalidate>{% csrf_token %}
+  {% include "_form.html" %}
+  <button class="boton" type="submit">Guardar</button>
+</form>
+{% endblock %}

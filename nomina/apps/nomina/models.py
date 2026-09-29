@@ -10,7 +10,7 @@ quedan netos en cero) y se procesa una nómina nueva correcta.
 from decimal import Decimal
 
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.companias.models import Compania
@@ -214,6 +214,94 @@ class LineaResultado(models.Model):
 
     class Meta:
         ordering = ["orden"]
+
+
+
+class FormatoCheque(models.Model):
+    """Cómo se imprimen los cheques de la compañía en papel de cheque tipo voucher (cheque + 2 talonarios)."""
+
+    class Posicion(models.TextChoices):
+        ARRIBA = "arriba", "Cheque arriba (voucher estándar)"
+        MEDIO = "medio", "Cheque en el medio"
+        ABAJO = "abajo", "Cheque abajo"
+
+    class Idioma(models.TextChoices):
+        ES = "es", "Español"
+        EN = "en", "Inglés"
+
+    compania = models.OneToOneField(Compania, on_delete=models.CASCADE, related_name="formato_cheque")
+    posicion = models.CharField("posición del cheque en la hoja", max_length=10, choices=Posicion.choices,
+                                default=Posicion.ARRIBA)
+    idioma = models.CharField("monto en letras", max_length=2, choices=Idioma.choices, default=Idioma.ES)
+    siguiente_numero = models.PositiveIntegerField(
+        "próximo número de cheque", default=1001,
+        help_text="Debe coincidir con el número preimpreso en la próxima hoja de cheques.")
+    ajuste_horizontal = models.DecimalField(
+        "ajuste horizontal (pulgadas)", max_digits=4, decimal_places=2, default=0,
+        validators=[MinValueValidator(Decimal("-1")), MaxValueValidator(Decimal("1"))],
+        help_text="Positivo mueve la impresión a la derecha.")
+    ajuste_vertical = models.DecimalField(
+        "ajuste vertical (pulgadas)", max_digits=4, decimal_places=2, default=0,
+        validators=[MinValueValidator(Decimal("-1")), MaxValueValidator(Decimal("1"))],
+        help_text="Positivo mueve la impresión hacia abajo.")
+    imprimir_encabezado = models.BooleanField(
+        "imprimir nombre de la compañía y número de cheque", default=False,
+        help_text="Márquelo si su papel de cheque no los trae preimpresos.")
+    nombre_cuenta = models.CharField("cuenta bancaria (se muestra en el talonario)", max_length=100, blank=True)
+
+    def __str__(self):
+        return f"Formato de cheques de {self.compania}"
+
+
+class ErrorChequeInmutable(Exception):
+    pass
+
+
+class Cheque(models.Model):
+    """Cheque de nómina emitido. No se modifica ni se borra: sólo se anula (con motivo) y se emite otro."""
+
+    class Estado(models.TextChoices):
+        EMITIDO = "emitido", "Emitido"
+        ANULADO = "anulado", "Anulado"
+
+    compania = models.ForeignKey(Compania, on_delete=models.PROTECT, related_name="cheques_nomina")
+    periodo = models.ForeignKey(PeriodoNomina, on_delete=models.PROTECT, related_name="cheques")
+    resultado = models.ForeignKey(ResultadoNomina, on_delete=models.PROTECT, related_name="cheques")
+    numero = models.PositiveIntegerField("número")
+    fecha = models.DateField()
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    beneficiario = models.CharField(max_length=250)
+    estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.EMITIDO)
+    motivo_anulacion = models.CharField("motivo de anulación", max_length=300, blank=True)
+    emitido_en = models.DateTimeField(auto_now_add=True)
+    emitido_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    anulado_en = models.DateTimeField(null=True, blank=True)
+    anulado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+                                    related_name="+")
+
+    class Meta:
+        ordering = ["numero"]
+        constraints = [
+            # Un número usado (aunque se anule) no se vuelve a usar: el papel ya se consumió.
+            models.UniqueConstraint(fields=["compania", "numero"], name="numero_cheque_unico"),
+            models.UniqueConstraint(fields=["resultado"], condition=models.Q(estado="emitido"),
+                                    name="un_cheque_vigente_por_resultado"),
+        ]
+
+    def __str__(self):
+        return f"Cheque {self.numero} — {self.beneficiario} ${self.monto:,.2f}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            original = Cheque.objects.get(pk=self.pk)
+            campos_fijos = ("compania_id", "periodo_id", "resultado_id", "numero", "fecha", "monto", "beneficiario")
+            anulando = original.estado == self.Estado.EMITIDO and self.estado == self.Estado.ANULADO
+            if not anulando or any(getattr(original, c) != getattr(self, c) for c in campos_fijos):
+                raise ErrorChequeInmutable("Un cheque emitido no se modifica; sólo se anula.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ErrorChequeInmutable("Un cheque no se borra; se anula.")
 
 
 CERO = Decimal("0")

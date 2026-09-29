@@ -302,6 +302,9 @@ def reversar_periodo(periodo, motivo, usuario):
                 horas=-mov.horas, creado_por=usuario, descripcion=f"Reverso de nómina: {motivo}"[:300],
                 periodo_nomina=reverso,
             )
+        from .cheques import anular_del_periodo
+
+        anular_del_periodo(periodo, motivo, usuario)
         reverso.estado = PeriodoNomina.Estado.CERRADA
         reverso.cerrado_en = timezone.now()
         reverso.cerrado_por = usuario

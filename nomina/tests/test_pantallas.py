@@ -106,6 +106,9 @@ def _pantallas(d, admin):
         reverse("nomina:talonarios", args=[d["periodo"].pk]),
         reverse("nomina:registro", args=[d["periodo"].pk]),
         reverse("nomina:deducciones_empleado", args=[e.pk]),
+        reverse("nomina:cheques", args=[d["periodo"].pk]),
+        reverse("nomina:formato_cheque"),
+        reverse("nomina:prueba_alineacion"),
     ], [
         reverse("parametros:inicio"),
         reverse("parametros:anio", args=[2026]),

@@ -50,6 +50,9 @@ class Accion(models.TextChoices):
     NOMINA_PROCESADA = "nomina_procesada", "Nómina procesada"
     NOMINA_REVERSADA = "nomina_reversada", "Nómina reversada"
     ARCHIVO_GENERADO = "archivo_generado", "Archivo generado"
+    CHEQUE_EMITIDO = "cheque_emitido", "Cheques emitidos"
+    CHEQUE_ANULADO = "cheque_anulado", "Cheque anulado"
+    FORMATO_CHEQUE = "formato_cheque", "Formato de cheques modificado"
     ACCESO_DENEGADO = "acceso_denegado", "Acceso denegado"
 
 

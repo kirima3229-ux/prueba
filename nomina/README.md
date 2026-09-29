@@ -221,6 +221,22 @@ Menú **Nómina**:
 **Talonarios** en PDF (SSN enmascarado, período actual y acumulado del año por concepto, balances de licencias) y
 **registro de nómina** en Excel.
 
+### Cheques y talonarios para imprimir
+
+En una nómina cerrada, **Cheques y talonarios** emite e imprime los cheques en papel de cheque **tipo voucher**
+tamaño carta (cheque y dos talonarios: uno para el empleado y otra copia para el patrono, el mismo papel que usa
+QuickBooks). El papel debe traer preimpresos el banco, la línea MICR y el número.
+
+- **Formato de cheques** (por compañía): posición del cheque (arriba, medio o abajo), monto en letras en español o
+  inglés, próximo número, ajustes de alineación en pulgadas y si se imprime el nombre de la compañía. La **prueba de
+  alineación** se imprime en papel blanco para ponerla sobre una hoja de cheques y calibrar.
+- **Emitir**: se marcan los empleados (por defecto los que no tienen depósito directo) y se indica el número del
+  primer cheque que está en la impresora; se numeran en orden alfabético.
+- Un cheque emitido **no se modifica ni se borra**. Si se daña o se pierde se **anula con motivo** y se reemite con
+  el próximo número. Un número usado no se vuelve a usar. Al reversar una nómina sus cheques quedan anulados.
+- Los empleados con depósito directo reciben un **aviso de depósito** (no negociable) en el mismo formato.
+- Imprimir cheques requiere rol de preparador o administrador; todo queda en la bitácora.
+
 ## Estructura
 
 ```
