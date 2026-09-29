@@ -10,7 +10,8 @@ Sistema de nómina para Puerto Rico, multi-compañía, construido con Django + P
 | 4 | Planillas de Hacienda, DTRH, IRS y CFSE | Hojas de trabajo completadas; archivos electrónicos pendientes de las especificaciones |
 | 5 | Revisión de seguridad, respaldos cifrados, rotación de llaves, Docker y documentación | Completada |
 
-**Documentación:** [instalación en producción](docs/instalacion_produccion.md) ·
+**Documentación:** [probarlo en su computadora (Windows o Mac)](docs/instalacion_local.md) ·
+[instalación en producción](docs/instalacion_produccion.md) ·
 [operación: respaldos, restauración y llaves](docs/operacion.md) · [seguridad](docs/seguridad.md) ·
 [manual de uso](docs/manual_usuario.md)
 
@@ -31,6 +32,7 @@ python generar_env.py              # crea .env con llaves nuevas (SQLite)
 
 python manage.py migrate
 python manage.py createsuperuser   # queda como Administrador
+python manage.py cargar_demo       # opcional: compañía ficticia con empleados y nóminas
 python manage.py runserver
 ```
 
