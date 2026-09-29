@@ -30,8 +30,21 @@
   <h3>Enfermedad</h3>
   <p>Balance: {{ liquidacion.horas_enfermedad }} h. {{ liquidacion.explicacion_enfermedad }}</p>
   <p class="texto-suave">Los balances salen de <a href="{% url 'licencias:empleado' empleado.pk %}">Vacaciones y enfermedad</a>; si no están al día, registre el saldo antes de calcular.</p>
-  <p class="texto-suave">Salarios del último período y bono de Navidad, si corresponden, se pagan aparte en la nómina final (Fase 3).</p>
+  <p class="texto-suave">Salarios del último período y bono de Navidad, si corresponden, se añaden en la nómina final.</p>
 </div>
+{% if user.puede_editar and liquidacion.total %}
+<form method="post" class="tarjeta" novalidate>
+  {% csrf_token %}
+  {% for campo in form %}{{ campo.as_hidden }}{% endfor %}
+  <input type="hidden" name="accion" value="pagar">
+  <h2>Pagar por nómina</h2>
+  <p>Crea una nómina especial (nómina final) para {{ empleado.nombre_completo }} con estos montos. Allí puede añadir las horas o el salario que falten; al cerrarla se descuentan del balance las horas de licencia pagadas.</p>
+  <div class="campo"><label><input type="checkbox" name="incluir_mesada" {% if m.aplica and m.monto %}checked{% endif %}> Incluir la mesada (despido sin justa causa)</label>
+    <small class="texto-suave">Desmárquelo si el empleado renunció o hubo justa causa: sólo se liquidan las licencias.</small></div>
+  <div class="campo"><label for="fecha_pago">Fecha de pago</label><input type="date" id="fecha_pago" name="fecha_pago" required></div>
+  <button class="boton" type="submit">Crear nómina final</button>
+</form>
+{% endif %}
 {% endwith %}
 {% endif %}
 {% endblock %}

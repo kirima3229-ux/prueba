@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block titulo %}Banco para depósito directo{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a></div>
+<div class="encabezado"><h1>Banco para depósito directo (NACHA) — {{ compania_activa }}</h1></div>
+<div class="tarjeta">
+  <p>Estos datos los da el banco de la compañía cuando se activa el servicio de depósito directo (ACH). Pídale al banco:
+    el número de ruta, el <em>Immediate Origin</em>, el <em>Company ID</em> y si el archivo debe ser balanceado.</p>
+  <p class="texto-suave">El archivo que se genera es tipo PPD (créditos de nómina). Antes del primer envío real, el banco suele pedir un archivo de prueba.</p>
+</div>
+<form method="post" class="tarjeta" novalidate>{% csrf_token %}
+  {% include "_form.html" %}
+  {% if config.cuenta_compania_ultimos4 %}<p class="texto-suave">Cuenta de la compañía guardada: ••••{{ config.cuenta_compania_ultimos4 }}</p>{% endif %}
+  <button class="boton" type="submit">Guardar</button>
+</form>
+{% endblock %}

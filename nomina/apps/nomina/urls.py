@@ -20,6 +20,8 @@ urlpatterns = [
     path("<int:pk>/cheques.pdf", views.cheques_pdf, name="cheques_pdf"),
     path("<int:pk>/avisos-deposito.pdf", views.avisos_deposito, name="avisos_deposito"),
     path("cheques/formato/", views.formato_cheque, name="formato_cheque"),
+    path("<int:pk>/deposito-directo/", views.deposito_directo_vista, name="deposito_directo"),
+    path("deposito-directo/banco/", views.configuracion_nacha, name="configuracion_nacha"),
     path("cheques/prueba-alineacion.pdf", views.prueba_alineacion, name="prueba_alineacion"),
     path("empleado/<int:pk>/deducciones/", views.deducciones_empleado, name="deducciones_empleado"),
 ]

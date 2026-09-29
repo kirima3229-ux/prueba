@@ -145,7 +145,9 @@ def calcular_bonos(compania, anio: int, datos: dict, usuario=None, guardar=False
                 regla=regla, numero_empleados=compania.numero_empleados, horas_trabajadas=horas, salario=salario
             )
             existente = BonoNavidad.objects.filter(empleado=emp, anio=anio).first()
-            fila = FilaBono(emp, horas, salario, resultado, pagado=bool(existente and existente.estado == "pagado"))
+            # Pagado o ya puesto en una nómina: no se recalcula (se reversa esa nómina primero).
+            bloqueado = bool(existente and (existente.estado == "pagado" or existente.periodo_nomina_id))
+            fila = FilaBono(emp, horas, salario, resultado, pagado=bloqueado)
             if guardar and not fila.pagado:
                 BonoNavidad.objects.update_or_create(
                     empleado=emp, anio=anio,

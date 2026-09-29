@@ -24,7 +24,7 @@
     <tbody>
     {% for g in grid %}
     <tr>
-      <td>{{ g.e.nombre_completo }}{% if g.guardado.estado == "pagado" %} <span class="etiqueta verde">Pagado</span>{% endif %}</td>
+      <td>{{ g.e.nombre_completo }}{% if g.guardado.estado == "pagado" %} <span class="etiqueta verde">Pagado</span>{% elif g.guardado.periodo_nomina_id %} <a class="etiqueta amarilla" href="{% url 'nomina:detalle' g.guardado.periodo_nomina_id %}">En nómina</a>{% endif %}</td>
       <td>{{ g.e.get_regimen_efectivo_display }}</td>
       <td class="num"><input class="buscar" name="horas_{{ g.e.pk }}" value="{{ g.horas }}" inputmode="decimal"{% if not user.puede_editar %} disabled{% endif %}></td>
       <td class="num"><input class="buscar" name="salario_{{ g.e.pk }}" value="{{ g.salario }}" inputmode="decimal"{% if not user.puede_editar %} disabled{% endif %}></td>
@@ -47,5 +47,14 @@
   </div>
   {% endif %}
 </form>
-<p class="texto-suave">El bono debe pagarse no más tarde del 15 de diciembre. El pago en nómina y su tratamiento contributivo se completan en la Fase 3.</p>
+{% if por_pagar and user.puede_editar %}
+<form method="post" class="tarjeta" novalidate>
+  {% csrf_token %}<input type="hidden" name="anio" value="{{ anio }}"><input type="hidden" name="accion" value="pagar_nomina">
+  <h2>Pagar por nómina</h2>
+  <p>Crea una nómina especial con el bono guardado de {{ por_pagar|length }} empleado(s). Después calcule, revise y cierre esa nómina; al cerrarla el bono queda como pagado. Para cambiar un bono que ya está en una nómina, reverse esa nómina primero.</p>
+  <div class="campo"><label for="fecha_pago">Fecha de pago</label><input type="date" id="fecha_pago" name="fecha_pago" value="{{ fecha_pago_sugerida }}" required></div>
+  <button class="boton" type="submit">Crear nómina del bono</button>
+</form>
+{% endif %}
+<p class="texto-suave">El bono debe pagarse no más tarde del 15 de diciembre. Su tratamiento contributivo sigue la configuración del concepto «Bono de Navidad» (POR VERIFICAR).</p>
 {% endblock %}

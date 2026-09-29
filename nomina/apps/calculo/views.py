@@ -171,6 +171,39 @@ class MesadaForm(forms.Form):
 
 
 @requiere_compania
+def _pagar_liquidacion(request, emp, liquidacion, fecha_despido):
+    """Crea la nómina final (especial) con la liquidación calculada. Devuelve la redirección o None si hay error."""
+    from datetime import date
+
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    from apps.auditoria.servicios import Accion, registrar
+    from apps.nomina import servicios as nomina
+
+    if not request.user.puede_editar:
+        messages.error(request, "No tiene permiso para crear nóminas.")
+        return None
+    try:
+        fecha_pago = date.fromisoformat(request.POST.get("fecha_pago", ""))
+    except ValueError:
+        messages.error(request, "Indique la fecha de pago de la liquidación.")
+        return None
+    try:
+        periodo = nomina.crear_liquidacion(
+            empleado=emp, liquidacion=liquidacion, fecha_despido=fecha_despido, fecha_pago=fecha_pago,
+            incluir_mesada=request.POST.get("incluir_mesada") == "on", usuario=request.user,
+        )
+    except nomina.ErrorNomina as e:
+        messages.error(request, str(e))
+        return None
+    registrar(request, Accion.PERIODO_CREADO, objeto=periodo, descripcion=periodo.descripcion,
+              cambios={"total": liquidacion.total})
+    messages.success(request, "Se creó la nómina final. Añada las horas o el salario pendiente si corresponde, "
+                              "calcule la pre-nómina, revise y cierre. Al cerrar se descuentan las licencias pagadas.")
+    return redirect("nomina:detalle", pk=periodo.pk)
+
+
 def mesada(request):
     from apps.licencias.models import saldo
 
@@ -208,6 +241,11 @@ def mesada(request):
                 error = f"Las reglas de {p.anio} están POR VERIFICAR."
         except cargar.ConfiguracionFaltante as e:
             error = str(e)
+        else:
+            if request.POST.get("accion") == "pagar":
+                respuesta = _pagar_liquidacion(request, emp, liquidacion, d["fecha_despido"])
+                if respuesta is not None:
+                    return respuesta
     return render(
         request,
         "calculo/mesada.html",

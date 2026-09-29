@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Depósito directo {{ periodo.fecha_pago|date:"m/d/Y" }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a> › <a href="{% url 'nomina:detalle' periodo.pk %}">{{ periodo.fecha_inicio|date:"m/d/Y" }} – {{ periodo.fecha_fin|date:"m/d/Y" }}</a></div>
+<div class="encabezado"><h1>Depósito directo · pago {{ periodo.fecha_pago|date:"m/d/Y" }} {% include "nomina/_estado.html" with p=periodo %}</h1>
+  {% if user.es_admin %}<div class="acciones"><a class="boton secundario" href="{% url 'nomina:configuracion_nacha' %}">Datos del banco</a></div>{% endif %}
+</div>
+{% if not config %}<div class="mensaje warning">Falta configurar el banco de la compañía para depósito directo{% if not user.es_admin %} (lo hace un administrador){% endif %}.</div>{% endif %}
+{% if periodo.estado != "cerrada" or periodo.tipo == "reverso" %}<div class="mensaje warning">El archivo se genera cuando la nómina está aprobada y cerrada.</div>{% endif %}
+
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Empleado</th><th>Banco</th><th>Ruta</th><th>Cuenta</th><th>Tipo</th><th class="num">Neto</th></tr></thead>
+  <tbody>
+  {% for r in resultados %}
+  <tr><td>{{ r.empleado_nombre }}</td><td>{{ r.empleado.banco_nombre }}</td><td class="mono">{{ r.empleado.banco_ruta|default:"—" }}</td>
+    <td class="mono">{{ r.empleado.cuenta_enmascarada|default:"—" }}</td><td>{{ r.empleado.get_banco_tipo_cuenta_display }}</td>
+    <td class="num">${{ r.neto|floatformat:2|intcomma }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="vacio">Nadie cobra por depósito directo en esta nómina.</td></tr>
+  {% endfor %}
+  </tbody>
+  {% if resultados %}<tfoot><tr><th colspan="5">Total ({{ resultados|length }} depósito{{ resultados|length|pluralize }})</th><th class="num">${{ total|floatformat:2|intcomma }}</th></tr></tfoot>{% endif %}
+</table>
+</div>
+<p class="texto-suave">Los empleados a quienes se les emitió cheque en esta nómina no se incluyen.</p>
+
+{% if puede and resultados %}
+<form method="post" class="tarjeta" novalidate>{% csrf_token %}
+  <h2>Generar archivo NACHA</h2>
+  {% if archivos %}<div class="mensaje warning">Ya se generó un archivo para esta nómina. Envíelo al banco una sola vez; si genera otro, asegúrese de no enviar los dos.</div>{% endif %}
+  <div class="campo"><label for="fecha_efectiva">Fecha efectiva (día en que el dinero llega a las cuentas)</label>
+    <input type="date" id="fecha_efectiva" name="fecha_efectiva" value="{{ fecha|date:'Y-m-d' }}" required>
+    <small class="texto-suave">Debe ser un día laborable. Envíe el archivo al banco con la anticipación que este le pida (por lo general 1 o 2 días laborables).</small></div>
+  <button class="boton" type="submit">Descargar archivo</button>
+</form>
+{% endif %}
+
+{% if archivos %}
+<div class="tarjeta"><h2>Archivos generados</h2>
+<table><thead><tr><th>Generado</th><th>Por</th><th>Fecha efectiva</th><th class="num">Depósitos</th><th class="num">Total</th><th>SHA-256</th></tr></thead>
+<tbody>{% for a in archivos %}<tr><td>{{ a.generado_en|date:"m/d/Y h:i A" }}</td><td>{{ a.generado_por }}</td><td>{{ a.fecha_efectiva|date:"m/d/Y" }}</td><td class="num">{{ a.depositos }}</td><td class="num">${{ a.total|floatformat:2|intcomma }}</td><td class="mono"><small>{{ a.huella|slice:":16" }}…</small></td></tr>{% endfor %}</tbody></table>
+</div>
+{% endif %}
+{% endblock %}

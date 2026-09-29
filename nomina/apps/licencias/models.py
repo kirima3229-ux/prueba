@@ -98,6 +98,10 @@ class BonoNavidad(models.Model):
     explicacion = models.TextField()
     estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.CALCULADO)
     parametros_verificados = models.BooleanField(default=False)
+    periodo_nomina = models.ForeignKey(
+        "nomina.PeriodoNomina", null=True, blank=True, on_delete=models.PROTECT, related_name="bonos_navidad",
+        help_text="Nómina especial en la que se paga.",
+    )
     calculado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )

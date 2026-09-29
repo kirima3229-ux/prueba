@@ -12,11 +12,12 @@ from django.utils import timezone
 from apps.calculo import cargar, motor
 from apps.companias.models import TasasCompania
 from apps.empleados.models import Empleado
-from apps.licencias.models import MovimientoLicencia, saldo
+from apps.licencias.models import BonoNavidad, MovimientoLicencia, saldo
 
 from .models import (
     DeduccionRecurrente,
     EntradaDeduccion,
+    EntradaIngreso,
     EntradaNomina,
     LineaResultado,
     PeriodoNomina,
@@ -69,7 +70,9 @@ def empleados_del_periodo(compania, inicio, fin):
     )
 
 
-def crear_periodo(*, compania, inicio, fin, fecha_pago, usuario, tipo=PeriodoNomina.Tipo.REGULAR, descripcion=""):
+def crear_periodo(*, compania, inicio, fin, fecha_pago, usuario, tipo=PeriodoNomina.Tipo.REGULAR, descripcion="",
+                  empleados=None):
+    """`empleados` limita el período a esos empleados (pagos especiales); por defecto, los activos."""
     if fin < inicio:
         raise ErrorNomina("La fecha final no puede ser anterior a la inicial.")
     with transaction.atomic():
@@ -77,7 +80,7 @@ def crear_periodo(*, compania, inicio, fin, fecha_pago, usuario, tipo=PeriodoNom
             compania=compania, fecha_inicio=inicio, fecha_fin=fin, fecha_pago=fecha_pago, tipo=tipo,
             descripcion=descripcion, creado_por=usuario,
         )
-        for emp in empleados_del_periodo(compania, inicio, fin):
+        for emp in empleados if empleados is not None else empleados_del_periodo(compania, inicio, fin):
             entrada = EntradaNomina.objects.create(periodo=periodo, empleado=emp)
             if tipo == PeriodoNomina.Tipo.REGULAR:
                 for ded in emp.deducciones_recurrentes.select_related("concepto"):
@@ -281,6 +284,19 @@ def cerrar_periodo(periodo, usuario):
                         fecha=periodo.fecha_pago, horas=-horas, creado_por=usuario,
                         descripcion=f"Pagado en {periodo}"[:300], periodo_nomina=periodo,
                     )
+            for tipo, horas in (("vacaciones", entrada.horas_vacaciones_liquidadas),
+                                ("enfermedad", entrada.horas_enfermedad_liquidadas)):
+                if horas:
+                    MovimientoLicencia.objects.create(
+                        empleado=entrada.empleado, tipo=tipo, clase=MovimientoLicencia.Clase.LIQUIDACION,
+                        fecha=periodo.fecha_pago, horas=-horas, creado_por=usuario,
+                        descripcion=f"Liquidado en {periodo}"[:300], periodo_nomina=periodo,
+                    )
+        pagados = {r.empleado_id for r in periodo.resultados.all()}
+        for bono in periodo.bonos_navidad.all():
+            if bono.empleado_id in pagados:
+                bono.estado = BonoNavidad.Estado.PAGADO
+                bono.save(update_fields=["estado"])
         periodo.estado = PeriodoNomina.Estado.CERRADA
         periodo.cerrado_en = timezone.now()
         periodo.cerrado_por = usuario
@@ -316,7 +332,8 @@ def reversar_periodo(periodo, motivo, usuario):
                     explicacion=f"Reverso de: {l.explicacion}", orden=l.orden,
                 )
         # Devuelve las horas de licencia que se habían descontado.
-        for mov in periodo.movimientos_licencia.filter(clase=MovimientoLicencia.Clase.USO):
+        for mov in periodo.movimientos_licencia.filter(
+                clase__in=(MovimientoLicencia.Clase.USO, MovimientoLicencia.Clase.LIQUIDACION)):
             MovimientoLicencia.objects.create(
                 empleado=mov.empleado, tipo=mov.tipo, clase=MovimientoLicencia.Clase.AJUSTE, fecha=periodo.fecha_pago,
                 horas=-mov.horas, creado_por=usuario, descripcion=f"Reverso de nómina: {motivo}"[:300],
@@ -325,6 +342,8 @@ def reversar_periodo(periodo, motivo, usuario):
         from .cheques import anular_del_periodo
 
         anular_del_periodo(periodo, motivo, usuario)
+        # El bono vuelve a quedar pendiente de pago.
+        periodo.bonos_navidad.update(estado=BonoNavidad.Estado.CALCULADO, periodo_nomina=None)
         reverso.estado = PeriodoNomina.Estado.CERRADA
         reverso.cerrado_en = timezone.now()
         reverso.cerrado_por = usuario
@@ -373,3 +392,64 @@ def datos_bono(compania, desde, hasta) -> dict:
         emp: (Decimal(horas.get(emp) or 0).quantize(centavo), Decimal(salarios.get(emp) or 0).quantize(centavo))
         for emp in set(horas) | set(salarios)
     }
+
+
+# --- Pagos especiales: bono de Navidad y liquidación -----------------------------------
+
+
+def pagar_bonos(compania, anio, fecha_pago, usuario):
+    """Crea una nómina especial con el bono de Navidad calculado y pendiente de cada empleado."""
+    from apps.parametros.models import ConceptoIngreso
+
+    bonos = list(
+        BonoNavidad.objects.filter(compania=compania, anio=anio, estado=BonoNavidad.Estado.CALCULADO,
+                                   periodo_nomina__isnull=True, elegible=True, monto__gt=0)
+        .select_related("empleado")
+    )
+    if not bonos:
+        raise ErrorNomina(f"No hay bonos de Navidad {anio} calculados y pendientes de pago.")
+    concepto = ConceptoIngreso.objects.get(codigo="bono_navidad")
+    with transaction.atomic():
+        periodo = crear_periodo(
+            compania=compania, inicio=bonos[0].periodo_desde, fin=bonos[0].periodo_hasta, fecha_pago=fecha_pago,
+            usuario=usuario, tipo=PeriodoNomina.Tipo.ESPECIAL, descripcion=f"Bono de Navidad {anio}",
+            empleados=[b.empleado for b in bonos],
+        )
+        entradas = {e.empleado_id: e for e in periodo.entradas.all()}
+        for bono in bonos:
+            EntradaIngreso.objects.create(entrada=entradas[bono.empleado_id], concepto=concepto, monto=bono.monto,
+                                          descripcion=f"Bono de Navidad {anio}")
+            bono.periodo_nomina = periodo
+            bono.save(update_fields=["periodo_nomina"])
+    return periodo
+
+
+def crear_liquidacion(*, empleado, liquidacion, fecha_despido, fecha_pago, incluir_mesada, usuario):
+    """Nómina final (especial) con la mesada y las licencias liquidadas de un empleado."""
+    from apps.parametros.models import ConceptoIngreso
+
+    conceptos = {c.codigo: c for c in ConceptoIngreso.objects.filter(
+        codigo__in=("mesada", "vacaciones_liquidadas", "enfermedad_liquidada"))}
+    lineas = []
+    if incluir_mesada and liquidacion.mesada.aplica and liquidacion.mesada.monto > 0:
+        lineas.append(("mesada", liquidacion.mesada.monto, liquidacion.mesada.explicacion))
+    if liquidacion.pago_vacaciones > 0:
+        lineas.append(("vacaciones_liquidadas", liquidacion.pago_vacaciones, liquidacion.explicacion_vacaciones))
+    if liquidacion.pago_enfermedad > 0:
+        lineas.append(("enfermedad_liquidada", liquidacion.pago_enfermedad, liquidacion.explicacion_enfermedad))
+    if not lineas:
+        raise ErrorNomina("No hay nada que pagar en la liquidación.")
+    with transaction.atomic():
+        periodo = crear_periodo(
+            compania=empleado.compania, inicio=fecha_despido, fin=fecha_despido, fecha_pago=fecha_pago,
+            usuario=usuario, tipo=PeriodoNomina.Tipo.ESPECIAL,
+            descripcion=f"Liquidación de {empleado.nombre_completo}"[:200], empleados=[empleado],
+        )
+        entrada = periodo.entradas.get()
+        for codigo, monto, explicacion in lineas:
+            EntradaIngreso.objects.create(entrada=entrada, concepto=conceptos[codigo], monto=monto,
+                                          descripcion=explicacion[:200])
+        entrada.horas_vacaciones_liquidadas = liquidacion.horas_vacaciones if liquidacion.pago_vacaciones > 0 else 0
+        entrada.horas_enfermedad_liquidadas = liquidacion.horas_enfermedad if liquidacion.pago_enfermedad > 0 else 0
+        entrada.save()
+    return periodo

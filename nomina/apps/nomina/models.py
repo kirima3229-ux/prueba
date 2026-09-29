@@ -14,6 +14,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.companias.models import Compania
+from apps.core.campos import CampoCifrado
 from apps.empleados.models import Empleado
 from apps.parametros.models import ConceptoDeduccion, ConceptoIngreso
 
@@ -118,6 +119,9 @@ class EntradaNomina(models.Model):
     horas_vacaciones = _horas("horas de vacaciones")
     horas_enfermedad = _horas("horas de enfermedad")
     semanas_choferil = models.PositiveSmallIntegerField(null=True, blank=True)
+    # Liquidación (nómina final): horas del balance que se pagan y se descuentan al cerrar.
+    horas_vacaciones_liquidadas = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    horas_enfermedad_liquidadas = models.DecimalField(max_digits=8, decimal_places=2, default=0)
 
     class Meta:
         ordering = ["empleado__apellido_paterno", "empleado__nombre"]
@@ -302,6 +306,49 @@ class Cheque(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ErrorChequeInmutable("Un cheque no se borra; se anula.")
+
+
+class ConfiguracionNACHA(models.Model):
+    """Datos del banco de la compañía para el archivo de depósito directo (NACHA)."""
+
+    compania = models.OneToOneField(Compania, on_delete=models.CASCADE, related_name="configuracion_nacha")
+    nombre_banco = models.CharField("banco que recibe el archivo", max_length=23)
+    ruta_banco = models.CharField("número de ruta del banco (ODFI)", max_length=9)
+    origen_inmediato = models.CharField(
+        "origen inmediato (Immediate Origin)", max_length=10,
+        help_text="Lo asigna el banco; a menudo es «1» seguido del EIN.")
+    identificacion_compania = models.CharField(
+        "identificación de la compañía (Company ID)", max_length=10,
+        help_text="Lo asigna el banco; a menudo es «1» seguido del EIN.")
+    nombre_compania = models.CharField("nombre de la compañía en el archivo", max_length=16)
+    descripcion = models.CharField("descripción de la entrada", max_length=10, default="NOMINA")
+    balanceado = models.BooleanField(
+        "archivo balanceado", default=False,
+        help_text="Algunos bancos piden un débito a la cuenta de la compañía por el total.")
+    ruta_compania = models.CharField("ruta de la cuenta de la compañía", max_length=9, blank=True)
+    cuenta_compania = CampoCifrado("cuenta de la compañía")
+    cuenta_compania_ultimos4 = models.CharField(max_length=4, blank=True, editable=False)
+    tipo_cuenta_compania = models.CharField(
+        "tipo de cuenta de la compañía", max_length=10, choices=Empleado.TipoCuenta.choices,
+        default=Empleado.TipoCuenta.CHEQUES)
+
+    def __str__(self):
+        return f"NACHA de {self.compania}"
+
+
+class ArchivoBancario(models.Model):
+    """Historial de archivos NACHA generados (para no enviar dos veces el mismo pago sin darse cuenta)."""
+
+    periodo = models.ForeignKey(PeriodoNomina, on_delete=models.PROTECT, related_name="archivos_bancarios")
+    fecha_efectiva = models.DateField()
+    depositos = models.PositiveIntegerField()
+    total = models.DecimalField(max_digits=14, decimal_places=2)
+    huella = models.CharField("SHA-256 del archivo", max_length=64)
+    generado_en = models.DateTimeField(auto_now_add=True)
+    generado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        ordering = ["-generado_en"]
 
 
 CERO = Decimal("0")

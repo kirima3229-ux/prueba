@@ -189,6 +189,27 @@ def empleado(request, pk):
     )
 
 
+def _pagar_bono_por_nomina(request, anio):
+    from datetime import date
+
+    from apps.nomina import servicios as nomina
+
+    try:
+        fecha_pago = date.fromisoformat(request.POST.get("fecha_pago", ""))
+    except ValueError:
+        messages.error(request, "Indique la fecha de pago.")
+        return redirect(f"{request.path}?anio={anio}")
+    try:
+        periodo = nomina.pagar_bonos(request.compania, anio, fecha_pago, request.user)
+    except nomina.ErrorNomina as e:
+        messages.error(request, str(e))
+        return redirect(f"{request.path}?anio={anio}")
+    registrar(request, Accion.PERIODO_CREADO, objeto=periodo, descripcion=f"Nómina especial del bono de Navidad {anio}")
+    messages.success(request, f"Se creó la nómina del bono de Navidad con {periodo.entradas.count()} empleado(s). "
+                              "Calcule la pre-nómina, revise y cierre.")
+    return redirect("nomina:detalle", pk=periodo.pk)
+
+
 def _anio_bono(request):
     texto = request.GET.get("anio") or request.POST.get("anio") or ""
     return int(texto) if texto.isdigit() and 2000 <= int(texto) <= 2100 else timezone.localdate().year
@@ -204,6 +225,8 @@ def bono(request):
         if not request.user.puede_editar:
             messages.error(request, "No tiene permiso para calcular el bono.")
             return redirect(f"{request.path}?anio={anio}")
+        if request.POST.get("accion") == "pagar_nomina":
+            return _pagar_bono_por_nomina(request, anio)
         datos = {}
         for emp in Empleado.objects.filter(compania=request.compania):
             h, s = request.POST.get(f"horas_{emp.pk}"), request.POST.get(f"salario_{emp.pk}")
@@ -279,5 +302,8 @@ def bono(request):
             "anio": anio, "desde": desde, "hasta": hasta, "grid": grid, "filas": filas, "errores": errores,
             "verificado": verificado, "guardados": list(guardados.values()),
             "total_guardado": sum((b.monto for b in guardados.values()), Decimal("0")),
+            "por_pagar": [b for b in guardados.values() if b.estado == "calculado" and not b.periodo_nomina_id
+                          and b.elegible and b.monto > 0],
+            "fecha_pago_sugerida": f"{anio}-12-15",
         },
     )

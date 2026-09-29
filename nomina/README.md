@@ -263,6 +263,24 @@ Un período **especial** (bono, nómina final) no paga el salario fijo de los as
 Seguro Choferil: sólo lo que se entre. Conceptos nuevos: mesada, vacaciones liquidadas y enfermedad liquidada
 (tratamiento contributivo POR VERIFICAR).
 
+- **Bono de Navidad por nómina**: en *Licencias → Bono*, con el bono guardado, *Crear nómina del bono* hace una
+  nómina especial con el bono de cada empleado con derecho. Al cerrarla el bono queda *Pagado*; si se reversa, vuelve
+  a *Calculado*. Mientras está en una nómina no se recalcula.
+- **Nómina final (liquidación)**: en *Simulador → Calculadora de mesada*, después de calcular, *Crear nómina final*
+  hace una nómina especial con la mesada (opcional: se desmarca si renunció o hubo justa causa), las vacaciones y,
+  si se eligió, la enfermedad. Allí se añaden las horas o el salario pendiente. Al cerrarla se descuentan del
+  balance las horas liquidadas; al reversarla se devuelven.
+
+### Depósito directo (NACHA)
+
+Un administrador configura el banco de la compañía (*Nómina → nómina cerrada → Depósito directo → Datos del banco*):
+ruta del banco, *Immediate Origin*, *Company ID* y, si el banco lo pide, archivo balanceado con la cuenta de la
+compañía (cifrada). En una nómina cerrada, *Depósito directo* genera el archivo **NACHA PPD** (registros de 94
+caracteres en bloques de 10) con los empleados que tienen depósito directo y no cobraron con cheque. La fecha
+efectiva debe ser día laborable. Es el único lugar, además de la base de datos cifrada, donde van los números de
+cuenta completos. Cada archivo queda en el historial (con su huella SHA-256) y en la bitácora, y se avisa si ya se
+generó uno para esa nómina. Antes del primer envío real, pida al banco que valide un archivo de prueba.
+
 ## Estructura
 
 ```

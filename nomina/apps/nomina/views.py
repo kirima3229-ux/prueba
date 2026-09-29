@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django import forms
@@ -14,13 +15,15 @@ from apps.auditoria.servicios import Accion, diferencias, instantanea, registrar
 from apps.calculo import cargar
 from apps.core import hojas
 from apps.core.permisos import requiere_admin, requiere_compania, requiere_edicion
+from apps.core.validadores import validar_cuenta_bancaria, validar_ruta_bancaria
 from apps.empleados.forms import FechaInput
 from apps.empleados.models import Empleado
 from apps.parametros.models import ConceptoDeduccion, ConceptoIngreso
 
-from . import cheques, pdf_cheques, servicios, talonario
+from . import cheques, deposito_directo, pdf_cheques, servicios, talonario
 from .models import (
     Cheque,
+    ConfiguracionNACHA,
     DeduccionRecurrente,
     EntradaDeduccion,
     EntradaIngreso,
@@ -557,3 +560,95 @@ def importar_horas(request, pk):
             return redirect("nomina:detalle", pk=periodo.pk)
     return render(request, "nomina/importar_horas.html",
                   {"periodo": periodo, "form": form, "resultado": resultado})
+
+
+# --- Depósito directo (NACHA) ----------------------------------------------------------
+
+
+class ConfiguracionNACHAForm(forms.ModelForm):
+    cuenta_compania_nueva = forms.CharField(
+        label="Cuenta de la compañía (para archivo balanceado)", required=False, max_length=17,
+        help_text="Déjelo vacío para no cambiarla.")
+
+    class Meta:
+        model = ConfiguracionNACHA
+        fields = ["nombre_banco", "ruta_banco", "origen_inmediato", "identificacion_compania", "nombre_compania",
+                  "descripcion", "balanceado", "ruta_compania", "tipo_cuenta_compania"]
+
+    def clean_ruta_banco(self):
+        return validar_ruta_bancaria(self.cleaned_data["ruta_banco"])
+
+    def clean_ruta_compania(self):
+        ruta = self.cleaned_data.get("ruta_compania")
+        return validar_ruta_bancaria(ruta) if ruta else ""
+
+    def clean_cuenta_compania_nueva(self):
+        cuenta = self.cleaned_data.get("cuenta_compania_nueva")
+        return validar_cuenta_bancaria(cuenta) if cuenta else ""
+
+    def clean(self):
+        d = super().clean()
+        if d.get("balanceado"):
+            if not d.get("ruta_compania"):
+                self.add_error("ruta_compania", "El archivo balanceado necesita la ruta de la cuenta de la compañía.")
+            if not d.get("cuenta_compania_nueva") and not (self.instance.pk and self.instance.cuenta_compania):
+                self.add_error("cuenta_compania_nueva", "El archivo balanceado necesita la cuenta de la compañía.")
+        return d
+
+    def save(self, commit=True):
+        config = super().save(commit=False)
+        cuenta = self.cleaned_data.get("cuenta_compania_nueva")
+        if cuenta:
+            config.cuenta_compania = cuenta
+            config.cuenta_compania_ultimos4 = cuenta[-4:]
+        if commit:
+            config.save()
+        return config
+
+
+@requiere_compania
+@requiere_admin
+def configuracion_nacha(request):
+    config = deposito_directo.configuracion(request.compania)
+    if config is None:
+        config = ConfiguracionNACHA(compania=request.compania, nombre_compania=request.compania.nombre[:16])
+    antes = instantanea(config) if config.pk else {}
+    form = ConfiguracionNACHAForm(request.POST or None, instance=config)
+    if request.method == "POST" and form.is_valid():
+        config = form.save()
+        registrar(request, Accion.CONFIG_NACHA, objeto=request.compania,
+                  cambios=diferencias(antes, instantanea(config)))
+        messages.success(request, "Datos del banco guardados.")
+        return redirect("nomina:configuracion_nacha")
+    return render(request, "nomina/configuracion_nacha.html", {"form": form, "config": config})
+
+
+@requiere_compania
+@requiere_edicion
+def deposito_directo_vista(request, pk):
+    periodo = _periodo(request, pk)
+    config = deposito_directo.configuracion(request.compania)
+    resultados = deposito_directo.depositos(periodo)
+    fecha = deposito_directo.fecha_efectiva_sugerida(periodo)
+    if request.method == "POST":
+        try:
+            fecha = date.fromisoformat(request.POST.get("fecha_efectiva", ""))
+            contenido, archivo = deposito_directo.generar(periodo, fecha, request.user)
+        except ValueError:
+            messages.error(request, "Indique la fecha efectiva.")
+        except deposito_directo.ErrorDeposito as e:
+            messages.error(request, str(e))
+        else:
+            registrar(request, Accion.ARCHIVO_GENERADO, objeto=periodo,
+                      descripcion=f"Archivo NACHA: {archivo.depositos} depósito(s), ${archivo.total:,.2f}, "
+                                  f"efectivo {archivo.fecha_efectiva:%m/%d/%Y}",
+                      cambios={"sha256": archivo.huella})
+            respuesta = HttpResponse(contenido, content_type="text/plain; charset=ascii")
+            respuesta["Content-Disposition"] = f'attachment; filename="NOMINA_{periodo.fecha_pago:%Y%m%d}.ach"'
+            return respuesta
+    return render(request, "nomina/deposito_directo.html", {
+        "periodo": periodo, "config": config, "resultados": resultados, "fecha": fecha,
+        "total": sum((r.neto for r in resultados), Decimal("0")),
+        "archivos": periodo.archivos_bancarios.select_related("generado_por"),
+        "puede": periodo.estado == "cerrada" and periodo.tipo != "reverso" and config is not None,
+    })
