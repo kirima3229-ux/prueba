@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block titulo %}Importar empleados{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'empleados:lista' %}">Empleados</a></div>
+<div class="encabezado"><h1>Importar empleados — {{ compania_activa }}</h1>
+  <div class="acciones"><a class="boton secundario" href="{% url 'empleados:plantilla' %}">Descargar plantilla Excel</a></div></div>
+<div class="tarjeta">
+  <ol>
+    <li>Descargue la plantilla y llene un empleado por fila (la hoja "Instrucciones" explica cada columna).</li>
+    <li>Suba el archivo con <strong>Solo validar</strong> marcado para ver los errores sin importar nada.</li>
+    <li>Cuando no haya errores, desmarque <strong>Solo validar</strong> y súbalo de nuevo para importar.</li>
+  </ol>
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% include "_form.html" %}
+    <button class="boton" type="submit">Procesar archivo</button>
+  </form>
+</div>
+{% if resultado %}
+<div class="tarjeta">
+  <h2>Resultado</h2>
+  {% if resultado.errores %}
+    <div class="mensaje error">Se encontraron {{ resultado.errores|length }} error(es) en {{ resultado.total_filas }} fila(s). <strong>No se importó ningún empleado.</strong></div>
+    <div class="tabla-contenedor"><table>
+      <thead><tr><th>Fila</th><th>Columna</th><th>Error</th></tr></thead>
+      <tbody>{% for e in resultado.errores %}<tr><td>{{ e.fila }}</td><td class="mono">{{ e.columna|default:"—" }}</td><td>{{ e.mensaje }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  {% elif resultado.total_filas == 0 %}
+    <div class="mensaje warning">El archivo no tiene filas de empleados.</div>
+  {% else %}
+    <div class="mensaje success">Las {{ resultado.total_filas }} fila(s) son válidas. Desmarque "Solo validar" y suba el archivo de nuevo para importarlas.</div>
+  {% endif %}
+  {% if resultado.departamentos_nuevos %}<p>Departamentos que se crearán: {{ resultado.departamentos_nuevos|join:", " }}</p>{% endif %}
+  {% if resultado.cfse_nuevos %}<p>Clasificaciones CFSE que se crearán: {{ resultado.cfse_nuevos|join:", " }}</p>{% endif %}
+  {% if resultado.columnas_desconocidas %}<p class="texto-suave">Columnas ignoradas: {{ resultado.columnas_desconocidas|join:", " }}</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

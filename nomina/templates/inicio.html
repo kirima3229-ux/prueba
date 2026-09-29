@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titulo %}Inicio{% endblock %}
+{% block contenido %}
+<div class="encabezado"><h1>{% if compania_activa %}{{ compania_activa }}{% else %}Bienvenido{% endif %}</h1></div>
+{% if compania_activa %}
+<div class="rejilla">
+  <div class="tarjeta"><div class="cifra">{{ activos }}</div><div class="cifra-etiqueta">Empleados activos</div></div>
+  <div class="tarjeta"><div class="cifra">{{ inactivos }}</div><div class="cifra-etiqueta">Empleados inactivos</div></div>
+  <div class="tarjeta"><div class="cifra">{{ departamentos }}</div><div class="cifra-etiqueta">Departamentos</div></div>
+  <div class="tarjeta"><div class="cifra">{{ compania_activa.get_frecuencia_pago_display }}</div><div class="cifra-etiqueta">Frecuencia de pago</div></div>
+</div>
+{% if tasas_pendientes %}
+<div class="mensaje warning">
+  Hay tasas marcadas <strong>POR VERIFICAR</strong>:
+  {% for t in tasas_pendientes %}{{ t.anio }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+  <a href="{% url 'companias:detalle' compania_activa.pk %}">Revisar</a>
+</div>
+{% endif %}
+<div class="tarjeta">
+  <h2>Accesos rápidos</h2>
+  <div class="acciones">
+    <a class="boton secundario" href="{% url 'empleados:lista' %}">Ver empleados</a>
+    {% if user.puede_editar %}
+    <a class="boton secundario" href="{% url 'empleados:nuevo' %}">Nuevo empleado</a>
+    <a class="boton secundario" href="{% url 'empleados:importar' %}">Importar empleados</a>
+    {% endif %}
+    <a class="boton secundario" href="{% url 'companias:detalle' compania_activa.pk %}">Datos de la compañía</a>
+  </div>
+  <p class="texto-suave">La nómina, talonarios y reportes se añaden en las próximas fases.</p>
+</div>
+{% else %}
+<div class="tarjeta">
+  {% if user.es_admin %}
+    <p>No hay compañías todavía.</p>
+    <a class="boton" href="{% url 'companias:nueva' %}">Crear la primera compañía</a>
+  {% else %}
+    <p>No tiene compañías asignadas. Pida a un administrador que le asigne acceso.</p>
+  {% endif %}
+</div>
+{% endif %}
+{% if actividad %}
+<div class="tarjeta">
+  <h2>Actividad reciente</h2>
+  {% include "_historial.html" with historial=actividad %}
+  <p><a href="{% url 'auditoria:lista' %}">Ver bitácora completa</a></p>
+</div>
+{% endif %}
+{% endblock %}

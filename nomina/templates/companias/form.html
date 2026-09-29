@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'companias:lista' %}">Compañías</a>{% if compania %} › <a href="{% url 'companias:detalle' compania.pk %}">{{ compania }}</a>{% endif %}</div>
+<div class="encabezado"><h1>{{ titulo }}</h1></div>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="mensaje error">{{ form.non_field_errors }}</div>{% endif %}
+  <fieldset><legend>Identificación</legend><div class="campos-rejilla">
+    {% include "_campo.html" with campo=form.nombre %}
+    {% include "_campo.html" with campo=form.nombre_comercial %}
+    {% include "_campo.html" with campo=form.industria %}
+    {% include "_campo.html" with campo=form.activa %}
+  </div></fieldset>
+  <fieldset><legend>Números patronales (se guardan cifrados)</legend><div class="campos-rejilla">
+    {% include "_campo.html" with campo=form.ein_nuevo %}
+    {% include "_campo.html" with campo=form.registro_comerciante_nuevo %}
+    {% include "_campo.html" with campo=form.cuenta_patronal_dtrh_nuevo %}
+    {% include "_campo.html" with campo=form.poliza_cfse_nuevo %}
+  </div></fieldset>
+  <fieldset><legend>Dirección y contacto</legend><div class="campos-rejilla">
+    {% include "_campo.html" with campo=form.direccion_linea1 %}
+    {% include "_campo.html" with campo=form.direccion_linea2 %}
+    {% include "_campo.html" with campo=form.ciudad %}
+    {% include "_campo.html" with campo=form.estado %}
+    {% include "_campo.html" with campo=form.codigo_postal %}
+    {% include "_campo.html" with campo=form.telefono %}
+    {% include "_campo.html" with campo=form.persona_contacto %}
+    {% include "_campo.html" with campo=form.email_contacto %}
+  </div></fieldset>
+  <fieldset><legend>Nómina</legend><div class="campos-rejilla">
+    {% include "_campo.html" with campo=form.frecuencia_pago %}
+    {% include "_campo.html" with campo=form.numero_empleados %}
+  </div></fieldset>
+  <div class="acciones">
+    <button class="boton" type="submit">Guardar</button>
+    <a class="boton secundario" href="{% if compania %}{% url 'companias:detalle' compania.pk %}{% else %}{% url 'companias:lista' %}{% endif %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

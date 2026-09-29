@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Configurar 2FA{% endblock %}
+{% block contenido %}
+<div class="encabezado"><h1>Autenticación de dos pasos (2FA)</h1></div>
+<div class="tarjeta">
+  <ol>
+    <li>Instale <strong>Google Authenticator</strong> (o Microsoft Authenticator, Authy) en su teléfono.</li>
+    <li>En la aplicación, añada una cuenta escaneando este código QR:</li>
+  </ol>
+  <div class="qr">{{ qr_svg|safe }}</div>
+  <p class="texto-suave">Si no puede escanear, escriba esta clave manualmente:</p>
+  <p class="clave-2fa">{{ clave_texto }}</p>
+  <ol start="3"><li>Escriba el código de 6 dígitos que muestra la aplicación:</li></ol>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "_campo.html" with campo=form.codigo %}
+    <button class="boton" type="submit">Activar 2FA</button>
+  </form>
+</div>
+{% endblock %}

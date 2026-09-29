@@ -1,0 +1,47 @@
+{% extends "base_minima.html" %}
+{% block atributos_body %}data-minutos-sesion="{{ MINUTOS_SESION }}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'{% endblock %}
+{% block cuerpo %}
+{% with ruta=request.resolver_match.app_name %}
+<header class="barra">
+  <a class="marca" href="{% url 'inicio' %}">{{ NOMBRE_SISTEMA }}<small>{{ NOMBRE_FIRMA }}</small></a>
+  <nav class="menu">
+    <a href="{% url 'inicio' %}" class="{% if request.resolver_match.url_name == 'inicio' %}activo{% endif %}">Inicio</a>
+    <a href="{% url 'empleados:lista' %}" class="{% if ruta == 'empleados' %}activo{% endif %}">Empleados</a>
+    <a href="{% url 'companias:lista' %}" class="{% if ruta == 'companias' %}activo{% endif %}">Compañías</a>
+    {% if user.es_admin %}
+      <a href="{% url 'cuentas:usuarios' %}" class="{% if ruta == 'cuentas' and 'usuario' in request.resolver_match.url_name %}activo{% endif %}">Usuarios</a>
+      <a href="{% url 'auditoria:lista' %}" class="{% if ruta == 'auditoria' %}activo{% endif %}">Auditoría</a>
+    {% endif %}
+  </nav>
+  {% if companias_disponibles %}
+  <form class="selector-compania" method="post" action="{% url 'companias:seleccionar' %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <label class="oculto" for="selector-compania">Compañía activa</label>
+    <select id="selector-compania" name="compania" data-autoenviar>
+      {% if not compania_activa %}<option value="">— Seleccione compañía —</option>{% endif %}
+      {% for c in companias_disponibles %}
+        <option value="{{ c.pk }}" {% if compania_activa and c.pk == compania_activa.pk %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% endif %}
+  <div class="usuario-menu">
+    <a href="{% url 'cuentas:cambiar_contrasena' %}" title="Mi cuenta">{{ user.get_full_name|default:user.username }} · {{ user.get_rol_display }}</a>
+    <a href="{% url 'cuentas:configurar_2fa' %}">2FA</a>
+    <form method="post" action="{% url 'cuentas:salir' %}">{% csrf_token %}<button type="submit">Salir</button></form>
+  </div>
+</header>
+{% endwith %}
+<main>
+  {% if messages %}
+  <ul class="mensajes">
+    {% for m in messages %}<li class="mensaje {{ m.tags }}">{{ m }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% block contenido %}{% endblock %}
+</main>
+<div id="aviso-sesion" class="aviso-sesion oculto" role="alert">
+  Su sesión expirará en menos de un minuto por inactividad. Guarde su trabajo o recargue la página para continuar.
+</div>
+{% endblock %}

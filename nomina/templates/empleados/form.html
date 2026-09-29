@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'empleados:lista' %}">Empleados</a>{% if empleado %} › <a href="{% url 'empleados:detalle' empleado.pk %}">{{ empleado.nombre_completo }}</a>{% endif %}</div>
+<div class="encabezado"><h1>{{ titulo }}</h1></div>
+<form method="post" novalidate autocomplete="off">
+  {% csrf_token %}
+  {% if form.errors %}<div class="mensaje error">Revise los campos marcados.{{ form.non_field_errors }}</div>{% endif %}
+  {% for titulo_seccion, campos in form.secciones %}
+  <fieldset><legend>{{ titulo_seccion }}</legend>
+    <div class="campos-rejilla">{% for campo in campos %}{% include "_campo.html" %}{% endfor %}</div>
+  </fieldset>
+  {% endfor %}
+  <p class="texto-suave">El SSN y la cuenta bancaria se guardan cifrados. En pantalla solo se muestran los últimos 4 dígitos.</p>
+  <div class="acciones">
+    <button class="boton" type="submit">Guardar</button>
+    <a class="boton secundario" href="{% if empleado %}{% url 'empleados:detalle' empleado.pk %}{% else %}{% url 'empleados:lista' %}{% endif %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

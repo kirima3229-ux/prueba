@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block titulo %}{{ empleado.nombre_completo }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'empleados:lista' %}">Empleados</a></div>
+<div class="encabezado">
+  <h1>{{ empleado.nombre_completo }} {% if empleado.activo %}<span class="etiqueta verde">Activo</span>{% else %}<span class="etiqueta gris">Inactivo</span>{% endif %}</h1>
+  {% if user.puede_editar %}
+  <div class="acciones">
+    <a class="boton" href="{% url 'empleados:editar' empleado.pk %}">Editar</a>
+    {% if empleado.activo %}
+      <a class="boton secundario" href="{% url 'empleados:terminar' empleado.pk %}">Terminar empleo</a>
+    {% else %}
+      <form class="en-linea" method="post" action="{% url 'empleados:reactivar' empleado.pk %}" data-confirmar="¿Reactivar a {{ empleado.nombre_completo }}?">{% csrf_token %}<button class="boton secundario" type="submit">Reactivar</button></form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+<div class="rejilla ancha">
+  <div class="tarjeta"><h2>Datos personales</h2><dl class="datos">
+    <dt>Número</dt><dd>{{ empleado.numero_empleado }}</dd>
+    <dt>SSN</dt><dd class="mono">{{ empleado.ssn_enmascarado }}</dd>
+    <dt>Nacimiento</dt><dd>{{ empleado.fecha_nacimiento|date:"m/d/Y"|default:"—" }}</dd>
+    <dt>Dirección</dt><dd>{{ empleado.direccion_linea1|default:"—" }} {{ empleado.direccion_linea2 }}<br>{{ empleado.ciudad }} {{ empleado.estado }} {{ empleado.codigo_postal }}</dd>
+    <dt>Teléfono</dt><dd>{{ empleado.telefono|default:"—" }}</dd>
+    <dt>Email</dt><dd>{{ empleado.email|default:"—" }}</dd>
+  </dl></div>
+  <div class="tarjeta"><h2>Empleo</h2><dl class="datos">
+    <dt>Fecha de empleo</dt><dd>{{ empleado.fecha_empleo|date:"m/d/Y" }}</dd>
+    <dt>Régimen laboral</dt><dd>{{ empleado.get_regimen_efectivo_display }}
+      {% if empleado.regimen_es_manual %}<span class="etiqueta amarilla">Asignado manualmente</span>{% elif not empleado.regimen_laboral %}<small class="texto-suave">(automático)</small>{% endif %}</dd>
+    <dt>Departamento</dt><dd>{{ empleado.departamento|default:"—" }}</dd>
+    <dt>Clasificación CFSE</dt><dd>{{ empleado.clasificacion_cfse|default:"—" }}</dd>
+    <dt>Tipo de pago</dt><dd>{{ empleado.get_tipo_pago_display }}</dd>
+    <dt>Tarifa</dt><dd>${{ empleado.tarifa|floatformat:2 }} {% if empleado.tipo_pago == "hora" %}por hora{% else %}por período{% endif %}</dd>
+    {% if empleado.horas_regulares_periodo %}<dt>Horas por período</dt><dd>{{ empleado.horas_regulares_periodo }}</dd>{% endif %}
+    <dt>Seguro Choferil</dt><dd>{{ empleado.aplica_choferil|yesno:"Sí,No" }}</dd>
+    <dt>Recibe propinas</dt><dd>{{ empleado.recibe_propinas|yesno:"Sí,No" }}</dd>
+    {% if not empleado.activo %}<dt>Terminación</dt><dd>{{ empleado.fecha_terminacion|date:"m/d/Y" }} — {{ empleado.get_razon_terminacion_display }}</dd>{% endif %}
+  </dl></div>
+  <div class="tarjeta"><h2>Retención PR (499 R-4)</h2><dl class="datos">
+    <dt>Estado civil</dt><dd>{{ empleado.get_r4_estado_civil_display }}</dd>
+    <dt>Exención personal</dt><dd>{{ empleado.get_r4_exencion_personal_display }}</dd>
+    <dt>Dependientes</dt><dd>{{ empleado.r4_dependientes }} (+{{ empleado.r4_dependientes_custodia_compartida }} custodia compartida)</dd>
+    <dt>Veterano</dt><dd>{{ empleado.r4_veterano|yesno:"Sí,No" }}</dd>
+    <dt>Concesión deducciones</dt><dd>${{ empleado.r4_concesion_deducciones|floatformat:2 }}</dd>
+    <dt>Retención adicional</dt><dd>${{ empleado.r4_retencion_adicional|floatformat:2 }}</dd>
+  </dl></div>
+  <div class="tarjeta"><h2>Federal (W-4) y depósito</h2><dl class="datos">
+    <dt>W-4</dt><dd>{% if empleado.w4_aplica %}{{ empleado.get_w4_estado_civil_display }}{% else %}No aplica{% endif %}</dd>
+    <dt>Depósito directo</dt><dd>{% if empleado.deposito_directo %}{{ empleado.banco_nombre }} · ruta {{ empleado.banco_ruta }} · cuenta <span class="mono">{{ empleado.cuenta_enmascarada }}</span> ({{ empleado.get_banco_tipo_cuenta_display }}){% else %}No{% endif %}</dd>
+  </dl></div>
+</div>
+{% if empleado.notas %}<div class="tarjeta"><h2>Notas</h2><p>{{ empleado.notas|linebreaksbr }}</p></div>{% endif %}
+<div class="tarjeta"><h2>Historial de cambios</h2>{% include "_historial.html" %}</div>
+{% endblock %}

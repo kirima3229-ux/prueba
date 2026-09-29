@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block titulo %}Verificación de la bitácora{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'auditoria:lista' %}">Bitácora</a></div>
+<h1>Verificación de integridad</h1>
+{% if ok %}
+<div class="mensaje success">La bitácora está íntegra: {{ total }} registros verificados y ninguno fue alterado.</div>
+{% else %}
+<div class="mensaje error">Se encontraron {{ problemas|length }} problema(s) de integridad en {{ total }} registros.</div>
+<ul>{% for p in problemas %}<li>{{ p }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

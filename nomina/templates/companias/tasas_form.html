@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block titulo %}Tasas{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'companias:lista' %}">Compañías</a> › <a href="{% url 'companias:detalle' compania.pk %}">{{ compania }}</a></div>
+<div class="encabezado"><h1>{% if tasas %}Tasas {{ tasas.anio }}{% else %}Nuevas tasas{% endif %} — {{ compania }}</h1>
+  {% if tasas %}{% if tasas.estado == "verificado" %}<span class="etiqueta verde">Verificado</span>{% else %}<span class="etiqueta amarilla">POR VERIFICAR</span>{% endif %}{% endif %}
+</div>
+<form method="post" class="tarjeta" novalidate>
+  {% csrf_token %}
+  <p class="texto-suave">Escriba las tasas en por ciento (ejemplo: 2.4 para 2.4%). Si cambia una tasa sin marcar la confirmación, vuelve a quedar POR VERIFICAR.</p>
+  {% include "_form.html" %}
+  <div class="acciones">
+    <button class="boton" type="submit">Guardar</button>
+    <a class="boton secundario" href="{% url 'companias:detalle' compania.pk %}">Cancelar</a>
+  </div>
+</form>
+{% if tasas %}<div class="tarjeta"><h2>Historial de cambios</h2>{% include "_historial.html" %}</div>{% endif %}
+{% endblock %}

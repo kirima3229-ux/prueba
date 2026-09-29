@@ -1,0 +1,14 @@
+{% extends "cuentas/_caja.html" %}
+{% block titulo %}Entrar{% endblock %}
+{% block caja %}
+<h1>Entrar</h1>
+<form method="post" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}">
+  {% if form.non_field_errors %}<div class="mensaje error">{{ form.non_field_errors }}</div>{% endif %}
+  {% include "_campo.html" with campo=form.username %}
+  {% include "_campo.html" with campo=form.password %}
+  <button class="boton" type="submit">Entrar</button>
+</form>
+<p class="texto-suave">Tras 5 intentos fallidos la cuenta se bloquea. Si olvidó su contraseña, pida a un administrador que la restablezca.</p>
+{% endblock %}

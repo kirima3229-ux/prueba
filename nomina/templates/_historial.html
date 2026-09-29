@@ -1,0 +1,24 @@
+{% if historial %}
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
+  <tbody>
+  {% for r in historial %}
+    <tr>
+      <td>{{ r.fecha|date:"m/d/Y h:i A" }}</td>
+      <td>{{ r.usuario_nombre|default:"—" }}</td>
+      <td>{{ r.get_accion_display }}</td>
+      <td>{{ r.descripcion }}
+        {% if r.cambios %}<ul class="cambios">{% for campo, c in r.cambios.items %}
+          <li><strong>{{ campo }}</strong>:
+            {% if c.sensible %}modificado (dato protegido){% elif c.antes is not None or c.despues is not None %}{{ c.antes|default_if_none:"—" }} → {{ c.despues|default_if_none:"—" }}{% else %}{{ c }}{% endif %}
+          </li>{% endfor %}</ul>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="texto-suave">Sin cambios registrados.</p>
+{% endif %}

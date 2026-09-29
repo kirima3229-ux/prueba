@@ -1,0 +1,8 @@
+{% extends "base_minima.html" %}
+{% block cuerpo %}
+<div class="pantalla-entrada"><div class="caja-entrada">
+  <div class="marca-grande"><strong>{{ NOMBRE_SISTEMA }}</strong>{{ NOMBRE_FIRMA }}</div>
+  {% if messages %}<ul class="mensajes">{% for m in messages %}<li class="mensaje {{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+  <div class="tarjeta">{% block caja %}{% endblock %}</div>
+</div></div>
+{% endblock %}

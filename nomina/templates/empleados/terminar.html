@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Terminar empleo{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'empleados:lista' %}">Empleados</a> › <a href="{% url 'empleados:detalle' empleado.pk %}">{{ empleado.nombre_completo }}</a></div>
+<div class="encabezado"><h1>Terminar empleo de {{ empleado.nombre_completo }}</h1></div>
+<form method="post" class="tarjeta" novalidate>
+  {% csrf_token %}
+  {% include "_form.html" %}
+  <p class="texto-suave">El empleado queda inactivo; su historial se conserva. La calculadora de mesada (Ley 80) se añade en la Fase 2.</p>
+  <div class="acciones">
+    <button class="boton peligro" type="submit">Terminar empleo</button>
+    <a class="boton secundario" href="{% url 'empleados:detalle' empleado.pk %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

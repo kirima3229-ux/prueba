@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block titulo %}2FA{% endblock %}
+{% block contenido %}
+<div class="encabezado"><h1>Autenticación de dos pasos (2FA)</h1></div>
+<div class="tarjeta">
+  <p><span class="etiqueta verde">ACTIVO</span> Su cuenta pide un código de su aplicación de autenticación al entrar.</p>
+  {% if user.es_admin %}
+    <p class="texto-suave">Los administradores deben mantener el 2FA activo. Si cambia de teléfono, pida a otro administrador que reinicie su 2FA.</p>
+  {% else %}
+    <h2>Desactivar 2FA</h2>
+    <form method="post" action="{% url 'cuentas:desactivar_2fa' %}" novalidate>
+      {% csrf_token %}
+      {% for campo in form %}{% include "_campo.html" %}{% endfor %}
+      <button class="boton peligro" type="submit">Desactivar</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

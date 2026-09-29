@@ -1,0 +1,8 @@
+{% extends "cuentas/_caja.html" %}
+{% block titulo %}Cuenta bloqueada{% endblock %}
+{% block caja %}
+<h1>Cuenta bloqueada</h1>
+<p>Esta cuenta se bloqueó por demasiados intentos fallidos. El evento quedó registrado.</p>
+<p>Comuníquese con un administrador para desbloquearla.</p>
+<a class="boton secundario" href="{% url 'cuentas:entrar' %}">Volver</a>
+{% endblock %}

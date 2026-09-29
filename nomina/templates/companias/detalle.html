@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block titulo %}{{ compania }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'companias:lista' %}">Compañías</a></div>
+<div class="encabezado">
+  <h1>{{ compania }} {% if not compania.activa %}<span class="etiqueta gris">Inactiva</span>{% endif %}</h1>
+  {% if user.es_admin %}<div class="acciones"><a class="boton" href="{% url 'companias:editar' compania.pk %}">Editar</a></div>{% endif %}
+</div>
+<div class="tarjeta">
+  <dl class="datos">
+    <dt>Nombre legal</dt><dd>{{ compania.nombre }}</dd>
+    <dt>Industria</dt><dd>{{ compania.get_industria_display }}</dd>
+    <dt>EIN</dt><dd class="mono">{{ compania.ein_enmascarado|default:"—" }}</dd>
+    <dt>Registro de comerciante</dt><dd class="mono">{{ compania.registro_comerciante_enmascarado|default:"—" }}</dd>
+    <dt>Cuenta patronal DTRH</dt><dd class="mono">{{ compania.cuenta_dtrh_enmascarada|default:"—" }}</dd>
+    <dt>Póliza CFSE</dt><dd class="mono">{{ compania.poliza_cfse_enmascarada|default:"—" }}</dd>
+    <dt>Dirección</dt><dd>{{ compania.direccion_linea1 }} {{ compania.direccion_linea2 }} {{ compania.ciudad }} {{ compania.estado }} {{ compania.codigo_postal }}</dd>
+    <dt>Contacto</dt><dd>{{ compania.persona_contacto|default:"—" }} {{ compania.telefono }} {{ compania.email_contacto }}</dd>
+    <dt>Frecuencia de pago</dt><dd>{{ compania.get_frecuencia_pago_display }}</dd>
+    <dt>Empleados</dt><dd>{{ compania.numero_empleados }} declarados · {{ activos }} activos en el sistema</dd>
+  </dl>
+</div>
+
+<div class="tarjeta">
+  <div class="encabezado"><h2>Tasas por año</h2>
+    {% if user.es_admin %}<a class="boton pequeno" href="{% url 'companias:tasas_nuevas' compania.pk %}">Añadir año</a>{% endif %}</div>
+  <div class="tabla-contenedor"><table>
+    <thead><tr><th>Año</th><th class="num">SUTA %</th><th class="num">Aportación especial %</th><th class="num">SINOT empleado %</th><th class="num">SINOT patrono %</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+    {% for t in tasas %}
+    <tr>
+      <td>{{ t.anio }}</td>
+      <td class="num">{{ t.suta_tasa }}</td>
+      <td class="num">{{ t.aportacion_especial_tasa }}</td>
+      <td class="num">{{ t.sinot_empleado_tasa }}</td>
+      <td class="num">{{ t.sinot_patrono_tasa }}</td>
+      <td>{% if t.estado == "verificado" %}<span class="etiqueta verde">Verificado</span> <small class="texto-suave">{{ t.verificado_por.username }} {{ t.verificado_en|date:"m/d/Y" }}</small>{% else %}<span class="etiqueta amarilla">POR VERIFICAR</span>{% endif %}</td>
+      <td>{% if user.es_admin %}<a class="boton pequeno secundario" href="{% url 'companias:tasas_editar' compania.pk t.pk %}">Editar</a>{% endif %}</td>
+    </tr>
+    {% empty %}<tr><td colspan="7" class="vacio">No hay tasas configuradas.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="texto-suave">Las tasas de CFSE se configuran por clasificación en la Fase 2.</p>
+</div>
+
+<div class="rejilla">
+  <div class="tarjeta">
+    <div class="encabezado"><h2>Departamentos</h2>
+      {% if user.puede_editar %}<a class="boton pequeno" href="{% url 'companias:catalogo_nuevo' compania.pk 'departamentos' %}">Añadir</a>{% endif %}</div>
+    <table><tbody>
+      {% for d in departamentos %}
+      <tr><td>{{ d.nombre }} {% if d.codigo %}<small class="texto-suave">({{ d.codigo }})</small>{% endif %} {% if not d.activo %}<span class="etiqueta gris">Inactivo</span>{% endif %}</td>
+        <td>{% if user.puede_editar %}<a href="{% url 'companias:catalogo_editar' compania.pk 'departamentos' d.pk %}">Editar</a>{% endif %}</td></tr>
+      {% empty %}<tr><td class="vacio">Sin departamentos.</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+  <div class="tarjeta">
+    <div class="encabezado"><h2>Clasificaciones CFSE</h2>
+      {% if user.puede_editar %}<a class="boton pequeno" href="{% url 'companias:catalogo_nuevo' compania.pk 'cfse' %}">Añadir</a>{% endif %}</div>
+    <table><tbody>
+      {% for c in clasificaciones %}
+      <tr><td>{{ c }} {% if not c.activa %}<span class="etiqueta gris">Inactiva</span>{% endif %}</td>
+        <td>{% if user.puede_editar %}<a href="{% url 'companias:catalogo_editar' compania.pk 'cfse' c.pk %}">Editar</a>{% endif %}</td></tr>
+      {% empty %}<tr><td class="vacio">Sin clasificaciones.</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+
+{% if historial is not None %}
+<div class="tarjeta"><h2>Historial reciente de la compañía</h2>{% include "_historial.html" %}</div>
+{% endif %}
+{% endblock %}

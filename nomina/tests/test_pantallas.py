@@ -1,0 +1,76 @@
+"""Cada pantalla carga sin errores para los roles que tienen acceso."""
+
+import pytest
+from django.urls import reverse
+
+from apps.auditoria.servicios import Accion, registrar
+from apps.companias.models import ClasificacionCFSE, Departamento, TasasCompania
+
+from .conftest import crear_empleado
+
+
+@pytest.fixture
+def datos(compania, admin):
+    depto = Departamento.objects.create(compania=compania, nombre="Cocina")
+    cfse = ClasificacionCFSE.objects.create(compania=compania, codigo="9079", descripcion="Restaurantes")
+    tasas = TasasCompania.objects.create(
+        compania=compania, anio=2026, suta_tasa="2.4", aportacion_especial_tasa="1",
+        sinot_empleado_tasa="0.3", sinot_patrono_tasa="0.3",
+    )
+    empleado = crear_empleado(compania, departamento=depto, clasificacion_cfse=cfse)
+    inactivo = crear_empleado(compania, numero="101", ssn="234567890", activo=False)
+    registrar(accion=Accion.LOGIN, usuario=admin, descripcion="prueba", cambios={"campo": {"antes": 1, "despues": 2}})
+    return {"compania": compania, "depto": depto, "cfse": cfse, "tasas": tasas, "empleado": empleado, "inactivo": inactivo}
+
+
+def _pantallas(d, admin):
+    c, e = d["compania"], d["empleado"]
+    return [
+        reverse("inicio"),
+        reverse("cuentas:cambiar_contrasena"),
+        reverse("cuentas:configurar_2fa"),
+        reverse("companias:lista"),
+        reverse("companias:detalle", args=[c.pk]),
+        reverse("companias:catalogo_nuevo", args=[c.pk, "departamentos"]),
+        reverse("companias:catalogo_editar", args=[c.pk, "departamentos", d["depto"].pk]),
+        reverse("companias:catalogo_nuevo", args=[c.pk, "cfse"]),
+        reverse("companias:catalogo_editar", args=[c.pk, "cfse", d["cfse"].pk]),
+        reverse("empleados:lista"),
+        reverse("empleados:lista") + "?estado=todos&q=Juan",
+        reverse("empleados:nuevo"),
+        reverse("empleados:detalle", args=[e.pk]),
+        reverse("empleados:detalle", args=[d["inactivo"].pk]),
+        reverse("empleados:editar", args=[e.pk]),
+        reverse("empleados:terminar", args=[e.pk]),
+        reverse("empleados:importar"),
+    ], [
+        reverse("cuentas:usuarios"),
+        reverse("cuentas:usuario_nuevo"),
+        reverse("cuentas:usuario_editar", args=[admin.pk]),
+        reverse("cuentas:usuario_contrasena", args=[admin.pk]),
+        reverse("companias:nueva"),
+        reverse("companias:editar", args=[c.pk]),
+        reverse("companias:tasas_nuevas", args=[c.pk]),
+        reverse("companias:tasas_editar", args=[c.pk, d["tasas"].pk]),
+        reverse("auditoria:lista"),
+        reverse("auditoria:lista") + "?accion=login&desde=2020-01-01&hasta=2030-12-31&compania=" + str(c.pk),
+    ]
+
+
+@pytest.mark.django_db
+def test_pantallas_admin(cliente_admin, admin, datos):
+    comunes, solo_admin = _pantallas(datos, admin)
+    for url in comunes + solo_admin:
+        respuesta = cliente_admin.get(url)
+        assert respuesta.status_code == 200, url
+    respuesta = cliente_admin.post(reverse("auditoria:verificar"))
+    assert "íntegra" in respuesta.content.decode()
+
+
+@pytest.mark.django_db
+def test_pantallas_preparador(cliente_preparador, admin, datos):
+    comunes, solo_admin = _pantallas(datos, admin)
+    for url in comunes:
+        assert cliente_preparador.get(url).status_code == 200, url
+    for url in solo_admin:
+        assert cliente_preparador.get(url).status_code == 403, url

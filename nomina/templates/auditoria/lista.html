@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block titulo %}Bitácora de auditoría{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <h1>Bitácora de auditoría</h1>
+  <form class="acciones" method="post" action="{% url 'auditoria:verificar' %}">{% csrf_token %}<button class="boton secundario" type="submit">Verificar integridad</button></form>
+</div>
+<form class="filtros" method="get">
+  <div class="campo"><label for="accion">Acción</label><select id="accion" name="accion"><option value="">Todas</option>
+    {% for valor, etiqueta in acciones %}<option value="{{ valor }}" {% if filtros.accion == valor %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}</select></div>
+  <div class="campo"><label for="usuario">Usuario</label><input class="buscar" id="usuario" name="usuario" value="{{ filtros.usuario }}"></div>
+  <div class="campo"><label for="compania">Compañía</label><select id="compania" name="compania"><option value="">Todas</option>
+    {% for c in companias %}<option value="{{ c.pk }}" {% if filtros.compania == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+  <div class="campo"><label for="desde">Desde</label><input class="buscar" type="date" id="desde" name="desde" value="{{ filtros.desde }}"></div>
+  <div class="campo"><label for="hasta">Hasta</label><input class="buscar" type="date" id="hasta" name="hasta" value="{{ filtros.hasta }}"></div>
+  <button class="boton" type="submit">Filtrar</button>
+</form>
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>#</th><th>Fecha</th><th>Usuario</th><th>IP</th><th>Acción</th><th>Compañía</th><th>Objeto</th><th>Detalle</th></tr></thead>
+  <tbody>
+  {% for r in pagina %}
+  <tr>
+    <td>{{ r.pk }}</td>
+    <td>{{ r.fecha|date:"m/d/Y h:i:s A" }}</td>
+    <td>{{ r.usuario_nombre|default:"—" }}</td>
+    <td class="mono">{{ r.ip|default:"—" }}</td>
+    <td>{{ r.get_accion_display }}</td>
+    <td>{{ r.compania_nombre|default:"—" }}</td>
+    <td>{{ r.objeto_repr|default:"—" }}</td>
+    <td>{{ r.descripcion }}
+      {% if r.cambios %}<ul class="cambios">{% for campo, c in r.cambios.items %}<li><strong>{{ campo }}</strong>: {% if c.sensible %}modificado (dato protegido){% elif c.antes is not None or c.despues is not None %}{{ c.antes|default_if_none:"—" }} → {{ c.despues|default_if_none:"—" }}{% else %}{{ c }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+    </td>
+  </tr>
+  {% empty %}<tr><td colspan="8" class="vacio">Sin registros.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div class="paginacion">
+  {% if pagina.has_previous %}<a class="boton pequeno secundario" href="?{{ parametros }}&pagina={{ pagina.previous_page_number }}">Anterior</a>{% endif %}
+  <span>Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+  {% if pagina.has_next %}<a class="boton pequeno secundario" href="?{{ parametros }}&pagina={{ pagina.next_page_number }}">Siguiente</a>{% endif %}
+</div>
+{% endblock %}

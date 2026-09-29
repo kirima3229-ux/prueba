@@ -1,0 +1,12 @@
+{% extends "cuentas/_caja.html" %}
+{% block titulo %}Verificación{% endblock %}
+{% block caja %}
+<h1>Verificación en dos pasos</h1>
+<p>Escriba el código de 6 dígitos de su aplicación de autenticación (Google Authenticator u otra).</p>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% include "_campo.html" with campo=form.codigo %}
+  <button class="boton" type="submit">Verificar</button>
+</form>
+<p><a href="{% url 'cuentas:entrar' %}">Volver</a></p>
+{% endblock %}

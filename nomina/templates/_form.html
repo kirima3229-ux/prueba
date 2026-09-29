@@ -1,0 +1,5 @@
+{% if form.non_field_errors %}<div class="mensaje error">{{ form.non_field_errors }}</div>{% endif %}
+{% for campo in form.hidden_fields %}{{ campo }}{% endfor %}
+<div class="campos-rejilla">
+{% for campo in form.visible_fields %}{% include "_campo.html" %}{% endfor %}
+</div>

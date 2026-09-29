@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Compañías{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <h1>Compañías</h1>
+  {% if user.es_admin %}<div class="acciones"><a class="boton" href="{% url 'companias:nueva' %}">Nueva compañía</a></div>{% endif %}
+</div>
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Compañía</th><th>EIN</th><th>Industria</th><th>Frecuencia</th><th class="num">Empleados activos</th><th>Estado</th><th></th></tr></thead>
+  <tbody>
+  {% for c in companias %}
+  <tr>
+    <td><a href="{% url 'companias:detalle' c.pk %}">{{ c }}</a>{% if c.nombre_comercial %}<br><small class="texto-suave">{{ c.nombre }}</small>{% endif %}</td>
+    <td class="mono">{{ c.ein_enmascarado }}</td>
+    <td>{{ c.get_industria_display }}</td>
+    <td>{{ c.get_frecuencia_pago_display }}</td>
+    <td class="num">{{ c.activos|intcomma }}</td>
+    <td>{% if c.activa %}<span class="etiqueta verde">Activa</span>{% else %}<span class="etiqueta gris">Inactiva</span>{% endif %}</td>
+    <td>
+      {% if not compania_activa or compania_activa.pk != c.pk %}
+      <form class="en-linea" method="post" action="{% url 'companias:seleccionar' %}">{% csrf_token %}
+        <input type="hidden" name="compania" value="{{ c.pk }}"><input type="hidden" name="next" value="{% url 'inicio' %}">
+        <button class="boton pequeno secundario" type="submit">Trabajar con esta</button></form>
+      {% else %}<span class="etiqueta verde">Seleccionada</span>{% endif %}
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="7" class="vacio">No hay compañías{% if not user.es_admin %} asignadas{% endif %}.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

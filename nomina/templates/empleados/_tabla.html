@@ -1,0 +1,31 @@
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Núm.</th><th>Nombre</th><th>SSN</th><th>Departamento</th><th>Tipo</th><th class="num">Tarifa</th><th>Empleo</th><th>Régimen</th><th>Estado</th></tr></thead>
+  <tbody>
+  {% for e in pagina %}
+  <tr>
+    <td>{{ e.numero_empleado }}</td>
+    <td><a href="{% url 'empleados:detalle' e.pk %}">{{ e.apellido_paterno }} {{ e.apellido_materno }}, {{ e.nombre }} {{ e.segundo_nombre }}</a></td>
+    <td class="mono">{{ e.ssn_enmascarado }}</td>
+    <td>{{ e.departamento|default:"—" }}</td>
+    <td>{{ e.get_tipo_pago_display }}</td>
+    <td class="num">{{ e.tarifa|floatformat:2 }}</td>
+    <td>{{ e.fecha_empleo|date:"m/d/Y" }}</td>
+    <td>{{ e.get_regimen_efectivo_display }}</td>
+    <td>{% if e.activo %}<span class="etiqueta verde">Activo</span>{% else %}<span class="etiqueta gris">Inactivo</span>{% endif %}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="9" class="vacio">No hay empleados que coincidan.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if pagina.paginator.num_pages > 1 %}
+<div class="paginacion">
+  {% if pagina.has_previous %}<a class="boton pequeno secundario" href="?q={{ q|urlencode }}&estado={{ estado }}&pagina={{ pagina.previous_page_number }}">Anterior</a>{% endif %}
+  <span>Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} ({{ pagina.paginator.count }} empleados)</span>
+  {% if pagina.has_next %}<a class="boton pequeno secundario" href="?q={{ q|urlencode }}&estado={{ estado }}&pagina={{ pagina.next_page_number }}">Siguiente</a>{% endif %}
+</div>
+{% else %}
+<p class="texto-suave">{{ pagina.paginator.count }} empleado(s).</p>
+{% endif %}

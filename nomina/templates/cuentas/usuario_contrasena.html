@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block titulo %}Restablecer contraseña{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'cuentas:usuarios' %}">Usuarios</a></div>
+<div class="encabezado"><h1>Contraseña temporal para {{ usuario_obj.username }}</h1></div>
+<form method="post" class="tarjeta" novalidate>
+  {% csrf_token %}
+  {% for campo in form %}{% include "_campo.html" %}{% endfor %}
+  <p class="texto-suave">El usuario deberá cambiarla la próxima vez que entre.</p>
+  <button class="boton" type="submit">Asignar</button>
+</form>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% load static %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
+  <title>{% block titulo %}{{ NOMBRE_SISTEMA }}{% endblock %} · {{ NOMBRE_FIRMA }}</title>
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body {% block atributos_body %}{% endblock %}>
+{% block cuerpo %}{% endblock %}
+<script src="{% static 'js/htmx.min.js' %}"></script>
+<script src="{% static 'js/app.js' %}"></script>
+</body>
+</html>
