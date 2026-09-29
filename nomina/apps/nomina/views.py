@@ -723,3 +723,75 @@ def asiento_contable(request, pk):
         "debitos": sum((l.debito for l in lineas), Decimal("0")),
         "creditos": sum((l.credito for l in lineas), Decimal("0")),
     })
+
+
+# --- Servicios prestados en el ciclo de nómina ---------------------------------------------
+
+
+@requiere_compania
+def servicios_periodo(request, pk):
+    """Pagos a proveedores de servicios prestados con la fecha de pago de este ciclo de nómina."""
+    from apps.servicios import pagos as servicio_pagos
+    from apps.servicios.models import PagoServicio, ProveedorServicios
+
+    periodo = _periodo(request, pk)
+    puede = request.user.puede_editar and periodo.tipo != PeriodoNomina.Tipo.REVERSO
+    proveedores = list(ProveedorServicios.objects.filter(compania=request.compania, activo=True)
+                       .order_by("apellido_paterno", "nombre"))
+    filas = [{"p": p, "monto": "", "referencia": "", "descripcion": "", "metodo": "cheque", "calculo": None}
+             for p in proveedores]
+    errores = []
+    if request.method == "POST":
+        if not puede:
+            raise PermissionDenied("No tiene permiso para esta acción.")
+        registrar_pagos = request.POST.get("accion") == "registrar"
+        a_pagar = []
+        for f in filas:
+            p = f["p"]
+            f.update({c: request.POST.get(f"{c}_{p.pk}", "").strip()[:200]
+                      for c in ("monto", "referencia", "descripcion", "metodo")})
+            if f["metodo"] not in PagoServicio.Metodo.values:
+                f["metodo"] = "cheque"
+            try:
+                monto = _decimal(f["monto"])
+            except InvalidOperation:
+                errores.append(f"{p.nombre_mostrar}: el monto no es válido.")
+                continue
+            if not monto:
+                continue
+            try:
+                f["calculo"] = servicio_pagos.calcular(p, periodo.fecha_pago, monto)
+            except servicio_pagos.ErrorPago as e:
+                errores.append(f"{p.nombre_mostrar}: {e}")
+                continue
+            a_pagar.append((f, monto))
+        if not a_pagar and not errores:
+            errores.append("Escriba el monto de al menos un pago.")
+        if registrar_pagos and not errores:
+            try:
+                with transaction.atomic():
+                    creados = [
+                        servicio_pagos.registrar(
+                            proveedor=f["p"], fecha=periodo.fecha_pago, monto=monto, usuario=request.user,
+                            referencia=f["referencia"][:50], descripcion=f["descripcion"], metodo=f["metodo"],
+                            origen=PagoServicio.Origen.NOMINA, periodo_nomina=periodo,
+                        )[0]
+                        for f, monto in a_pagar
+                    ]
+            except servicio_pagos.ErrorPago as e:
+                errores.append(str(e))
+            else:
+                for pago in creados:
+                    registrar(request, Accion.PAGO_SERVICIO_REGISTRADO, objeto=pago,
+                              descripcion=f"Pago en el ciclo de nómina {periodo}",
+                              cambios={"monto": pago.monto, "retencion": pago.retencion})
+                messages.success(request, f"Se registraron {len(creados)} pago(s) a proveedores de servicios.")
+                return redirect("nomina:servicios", pk=periodo.pk)
+    pagados = periodo.pagos_servicios.select_related("proveedor")
+    return render(request, "nomina/servicios.html", {
+        "periodo": periodo, "filas": filas, "errores": errores, "puede": puede, "pagados": pagados,
+        "metodos": PagoServicio.Metodo.choices,
+        "vista_previa": request.method == "POST" and not errores,
+        "totales": pagados.exclude(estado="anulado").aggregate(monto=Sum("monto"), retencion=Sum("retencion"),
+                                                               neto=Sum("neto")),
+    })

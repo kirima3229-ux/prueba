@@ -289,6 +289,13 @@ salarios y a aportaciones patronales; crédito a cada retención y aportación p
 *Cuentas contables* el nombre de la cuenta de QuickBooks para cada concepto (o para el grupo); lo que no se asigna
 usa la cuenta sugerida. En QuickBooks: *Configuración → Importar datos → Asientos de diario*.
 
+### Servicios prestados en el ciclo de nómina
+
+En cada nómina, *Servicios prestados* permite pagar a varios proveedores con la fecha de pago del ciclo: se
+escriben los montos, *Ver retenciones* muestra la retención (10% después de los primeros $500, o el relevo) y
+*Registrar pagos* los guarda como pagos de servicios (origen «Ciclo de nómina»). Quedan en el informe trimestral,
+en los depósitos de retención y en *Impuestos a pagar*.
+
 ## Estructura
 
 ```

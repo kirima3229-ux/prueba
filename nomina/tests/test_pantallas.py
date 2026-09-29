@@ -111,6 +111,7 @@ def _pantallas(d, admin):
         reverse("nomina:reportes"),
         reverse("nomina:deposito_directo", args=[d["periodo"].pk]),
         reverse("nomina:importar_horas", args=[d["periodo"].pk]),
+        reverse("nomina:servicios", args=[d["periodo"].pk]),
         reverse("nomina:reportes") + "?reporte=costo&agrupar=departamento&rango=anio&anio=2026",
         reverse("nomina:reportes") + "?reporte=impuestos&rango=rango&desde=2026-01-01&hasta=2026-12-31",
         reverse("nomina:reportes") + "?reporte=empleados&rango=trimestre&anio=2026&trimestre=3&formato=pdf",

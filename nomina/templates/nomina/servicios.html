@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Servicios prestados {{ periodo.fecha_pago|date:"m/d/Y" }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'nomina:lista' %}">Nómina</a> › <a href="{% url 'nomina:detalle' periodo.pk %}">{{ periodo.fecha_inicio|date:"m/d/Y" }} – {{ periodo.fecha_fin|date:"m/d/Y" }}</a></div>
+<div class="encabezado"><h1>Servicios prestados · pago {{ periodo.fecha_pago|date:"m/d/Y" }}</h1>
+  <div class="acciones"><a class="boton secundario" href="{% url 'servicios:lista' %}">Proveedores</a></div></div>
+<p class="texto-suave">Pagos a proveedores de servicios (contratistas) con la fecha de pago de esta nómina. Se aplica la retención del 10% después de los primeros $500 del año, o el relevo del proveedor, igual que en <em>Servicios</em>. Los pagos quedan en el informe trimestral y en los depósitos de retención.</p>
+
+{% if pagados %}
+<h2>Pagos registrados en este ciclo</h2>
+<div class="tabla-contenedor"><table>
+  <thead><tr><th>Proveedor</th><th>Referencia</th><th>Método</th><th class="num">Monto</th><th class="num">Retención</th><th class="num">Neto</th><th>Estado</th></tr></thead>
+  <tbody>{% for p in pagados %}<tr{% if p.estado == "anulado" %} class="texto-suave"{% endif %}>
+    <td><a href="{% url 'servicios:pago_detalle' p.pk %}">{{ p.proveedor.nombre_mostrar }}</a></td><td>{{ p.referencia }}</td><td>{{ p.get_metodo_display }}</td>
+    <td class="num">${{ p.monto|floatformat:2|intcomma }}</td><td class="num">${{ p.retencion|floatformat:2|intcomma }}</td><td class="num">${{ p.neto|floatformat:2|intcomma }}</td>
+    <td>{% if p.estado == "anulado" %}<span class="etiqueta gris">Anulado</span>{% else %}<span class="etiqueta verde">Registrado</span>{% endif %}</td></tr>{% endfor %}</tbody>
+  <tfoot><tr><th colspan="3">Total (sin anulados)</th><th class="num">${{ totales.monto|default:0|floatformat:2|intcomma }}</th><th class="num">${{ totales.retencion|default:0|floatformat:2|intcomma }}</th><th class="num">${{ totales.neto|default:0|floatformat:2|intcomma }}</th><th></th></tr></tfoot>
+</table></div>
+<p class="texto-suave">Para anular un pago, ábralo y use <em>Anular</em>.</p>
+{% endif %}
+
+{% if puede %}
+<form method="post" class="tarjeta" novalidate>
+  {% csrf_token %}
+  <h2>Nuevos pagos</h2>
+  {% for e in errores %}<div class="mensaje error">{{ e }}</div>{% endfor %}
+  <div class="tabla-contenedor"><table class="tabla-form">
+    <thead><tr><th>Proveedor</th><th class="num">Monto $</th><th>Factura / referencia</th><th>Descripción</th><th>Método</th>{% if vista_previa %}<th class="num">Retención</th><th class="num">Neto</th><th>Detalle</th>{% endif %}</tr></thead>
+    <tbody>{% for f in filas %}<tr>
+      <td>{{ f.p.nombre_mostrar }}<br><small class="texto-suave">{{ f.p.get_relevo_display }}</small></td>
+      <td><input name="monto_{{ f.p.pk }}" value="{{ f.monto }}" inputmode="decimal" aria-label="Monto para {{ f.p.nombre_mostrar }}"></td>
+      <td><input name="referencia_{{ f.p.pk }}" value="{{ f.referencia }}" maxlength="50" aria-label="Referencia"></td>
+      <td><input name="descripcion_{{ f.p.pk }}" value="{{ f.descripcion }}" maxlength="200" aria-label="Descripción"></td>
+      <td><select name="metodo_{{ f.p.pk }}" aria-label="Método">{% for v, n in metodos %}<option value="{{ v }}" {% if v == f.metodo %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></td>
+      {% if vista_previa %}{% if f.calculo %}<td class="num">${{ f.calculo.resultado.retencion|floatformat:2|intcomma }}</td><td class="num">${{ f.calculo.resultado.neto|floatformat:2|intcomma }}</td><td class="texto-suave explicacion">{{ f.calculo.resultado.explicacion }}{% for a in f.calculo.avisos %}<br>⚠ {{ a }}{% endfor %}</td>{% else %}<td></td><td></td><td></td>{% endif %}{% endif %}
+    </tr>{% empty %}<tr><td colspan="8" class="vacio">No hay proveedores activos. Añádalos en Servicios.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="acciones">
+    <button class="boton secundario" type="submit" name="accion" value="vista_previa">Ver retenciones</button>
+    {% if vista_previa %}<button class="boton" type="submit" name="accion" value="registrar">Registrar pagos</button>{% endif %}
+  </div>
+</form>
+{% endif %}
+{% endblock %}

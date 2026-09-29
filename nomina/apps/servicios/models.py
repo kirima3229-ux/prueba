@@ -263,6 +263,10 @@ class PagoServicio(models.Model):
     )
     anulado_en = models.DateTimeField(null=True, blank=True)
 
+    periodo_nomina = models.ForeignKey(
+        "nomina.PeriodoNomina", null=True, blank=True, on_delete=models.PROTECT, related_name="pagos_servicios",
+        help_text="Ciclo de nómina en que se pagó.",
+    )
     deposito = models.ForeignKey(
         "DepositoRetencion", null=True, blank=True, on_delete=models.PROTECT, related_name="pagos"
     )

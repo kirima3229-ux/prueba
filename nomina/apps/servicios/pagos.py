@@ -55,7 +55,7 @@ def calcular(proveedor: ProveedorServicios, fecha: date, monto: Decimal, exento:
 
 def registrar(*, proveedor, fecha, monto, usuario, exento=False, motivo_exencion="", referencia="",
               descripcion="", metodo=PagoServicio.Metodo.CHEQUE, numero_cheque="",
-              origen=PagoServicio.Origen.MANUAL) -> tuple[PagoServicio, list]:
+              origen=PagoServicio.Origen.MANUAL, periodo_nomina=None) -> tuple[PagoServicio, list]:
     if exento and not motivo_exencion.strip():
         raise ErrorPago("Indique el motivo por el que el pago está exento de retención.")
     if not proveedor.activo:
@@ -74,6 +74,7 @@ def registrar(*, proveedor, fecha, monto, usuario, exento=False, motivo_exencion
             metodo=metodo,
             numero_cheque=numero_cheque,
             origen=origen,
+            periodo_nomina=periodo_nomina,
             monto=r.monto,
             acumulado_previo=r.acumulado_previo,
             exencion_aplicada=r.exencion_aplicada,
