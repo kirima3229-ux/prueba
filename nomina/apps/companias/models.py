@@ -53,6 +53,17 @@ class Compania(models.Model):
     frecuencia_pago = models.CharField(
         "frecuencia de pago", max_length=20, choices=Frecuencia.choices, default=Frecuencia.SEMANAL
     )
+    class FrecuenciaDeposito(models.TextChoices):
+        MENSUAL = "mensual", "Mensual"
+        BISEMANAL = "bisemanal", "Bisemanal"
+
+    frecuencia_deposito = models.CharField(
+        "frecuencia de depósito de retenciones (Hacienda)",
+        max_length=10,
+        choices=FrecuenciaDeposito.choices,
+        default=FrecuenciaDeposito.MENSUAL,
+        help_text="Cada cuánto se depositan las retenciones (nómina y servicios prestados).",
+    )
     numero_empleados = models.PositiveIntegerField(
         "número de empleados (declarado)",
         default=0,

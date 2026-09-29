@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Registrar depósito{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'servicios:lista' %}">Servicios prestados</a> › <a href="{% url 'servicios:depositos' %}">Depósitos</a></div>
+<div class="encabezado"><h1>Registrar depósito de retención</h1></div>
+<div class="tarjeta">
+  <p class="texto-suave">El período sugerido sigue la frecuencia de depósito de la compañía ({{ compania_activa.get_frecuencia_deposito_display|lower }}). Puede cambiar las fechas y presionar "Ver pagos del período".</p>
+  <form class="filtros" method="get">
+    {% include "_campo.html" with campo=form.desde %}
+    {% include "_campo.html" with campo=form.hasta %}
+    <button class="boton secundario" type="submit">Ver pagos del período</button>
+  </form>
+  {% if periodo and incluidos %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="desde" value="{{ periodo.0|date:'Y-m-d' }}">
+    <input type="hidden" name="hasta" value="{{ periodo.1|date:'Y-m-d' }}">
+    {% if form.non_field_errors %}<div class="mensaje error">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="campos-rejilla">
+      {% include "_campo.html" with campo=form.fecha_deposito %}
+      {% include "_campo.html" with campo=form.confirmacion %}
+      {% include "_campo.html" with campo=form.notas %}
+    </div>
+    <button class="boton" type="submit">Registrar depósito de ${{ total|floatformat:2|intcomma }}</button>
+  </form>
+  {% endif %}
+</div>
+{% if anteriores %}<div class="mensaje warning">Hay {{ anteriores }} pago(s) con retención <strong>anteriores</strong> a este período que todavía no se han depositado.</div>{% endif %}
+<div class="tarjeta">
+  <h2>Pagos con retención pendiente en el período</h2>
+  <div class="tabla-contenedor"><table>
+    <thead><tr><th>Fecha</th><th>Proveedor</th><th>Factura</th><th class="num">Monto</th><th class="num">Retención</th></tr></thead>
+    <tbody>
+    {% for p in incluidos %}
+      <tr><td><a href="{% url 'servicios:pago_detalle' p.pk %}">{{ p.fecha|date:"m/d/Y" }}</a></td><td>{{ p.proveedor.nombre_mostrar }}</td><td>{{ p.referencia|default:"—" }}</td>
+        <td class="num">${{ p.monto|floatformat:2|intcomma }}</td><td class="num">${{ p.retencion|floatformat:2|intcomma }}</td></tr>
+    {% empty %}<tr><td colspan="5" class="vacio">No hay retención pendiente en este período.</td></tr>
+    {% endfor %}
+    </tbody>
+    {% if incluidos %}<tfoot><tr><th colspan="4">Total a depositar</th><th class="num">${{ total|floatformat:2|intcomma }}</th></tr></tfoot>{% endif %}
+  </table></div>
+</div>
+{% endblock %}

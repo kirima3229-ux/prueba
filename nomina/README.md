@@ -115,6 +115,12 @@ python manage.py shell -c "from django_otp.plugins.otp_totp.models import TOTPDe
      *Servicios → Tasa y exención* (cargadas POR VERIFICAR para 2025 y 2026).
    - Un pago registrado no se edita: se **anula** con motivo y se registra de nuevo. El resumen anual recalcula
      la retención de cada proveedor y marca "Revisar" si un pago anulado cambió lo que se debió retener.
+   - **Depósitos:** cada compañía tiene su frecuencia de depósito de retenciones (mensual o bisemanal). El
+     sistema sugiere el período siguiente, muestra la retención pendiente y, al registrar el depósito (fecha y
+     número de confirmación de SURI), marca esos pagos como depositados. El inicio avisa si hay retención
+     pendiente. Un depósito registrado por error se anula y sus pagos vuelven a quedar pendientes.
+   - **Informe trimestral** por proveedor (ingresos pagados y retenciones, con lo ya depositado y lo pendiente),
+     exportable a Excel. El archivo oficial que se sube cada trimestre se genera en la Fase 4.
    - **Resumen anual** por proveedor (pagado, exención, sujeto, retenido), exportable a Excel: es la base para
      la 480.6SP, que se genera en la Fase 4. En la Fase 3 los pagos también se podrán incluir en el ciclo de nómina.
 7. El selector de la barra superior cambia la compañía activa sin volver a entrar.

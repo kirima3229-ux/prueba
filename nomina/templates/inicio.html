@@ -9,6 +9,12 @@
   <div class="tarjeta"><div class="cifra">{{ proveedores }}</div><div class="cifra-etiqueta">Proveedores de servicios activos</div></div>
   <div class="tarjeta"><div class="cifra">{{ compania_activa.get_frecuencia_pago_display }}</div><div class="cifra-etiqueta">Frecuencia de pago</div></div>
 </div>
+{% if retencion_pendiente %}
+<div class="mensaje warning">
+  Retención por servicios prestados pendiente de depositar: <strong>${{ retencion_pendiente|floatformat:2 }}</strong>.
+  <a href="{% url 'servicios:depositos' %}">Ver depósitos</a>
+</div>
+{% endif %}
 {% if relevos_vencidos %}
 <div class="mensaje warning">
   Certificados de relevo vencidos:

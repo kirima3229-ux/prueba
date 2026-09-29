@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Trimestral servicios prestados{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'servicios:lista' %}">Servicios prestados</a></div>
+<div class="encabezado">
+  <h1>Informe trimestral — T{{ trimestre }} {{ anio }}</h1>
+  <div class="acciones"><a class="boton secundario" href="?anio={{ anio }}&trimestre={{ trimestre }}&formato=xlsx">Exportar a Excel</a></div>
+</div>
+{% include "servicios/_submenu.html" %}
+<form class="filtros" method="get">
+  <div class="campo"><label for="anio">Año</label><input class="buscar" id="anio" name="anio" type="number" min="2000" max="2100" value="{{ anio }}"></div>
+  <div class="campo"><label for="trimestre">Trimestre</label><select id="trimestre" name="trimestre">
+    {% for t in "1234" %}<option value="{{ t }}" {% if trimestre|stringformat:"s" == t %}selected{% endif %}>T{{ t }}</option>{% endfor %}</select></div>
+  <button class="boton" type="submit">Ver</button>
+</form>
+<p class="texto-suave">Pagos del {{ inicio|date:"m/d/Y" }} al {{ fin|date:"m/d/Y" }}: ingresos pagados y retenciones por proveedor. El archivo oficial para subir a Hacienda se genera en la Fase 4.</p>
+<div class="rejilla">
+  <div class="tarjeta"><div class="cifra">${{ totales.retencion|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Retenido en el trimestre</div></div>
+  <div class="tarjeta"><div class="cifra">${{ depositado|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Ya depositado</div></div>
+  <div class="tarjeta"><div class="cifra">${{ pendiente|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Pendiente de depositar</div></div>
+</div>
+{% if pendiente %}<div class="mensaje warning">Hay retención de este trimestre sin depositar. <a href="{% url 'servicios:deposito_nuevo' %}">Registrar depósito</a></div>{% endif %}
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Núm.</th><th>Proveedor</th><th>Identificación</th><th class="num">Pagos</th><th class="num">Ingreso pagado</th><th class="num">Exención</th><th class="num">Sujeto</th><th class="num">Retenido</th></tr></thead>
+  <tbody>
+  {% for f in filas %}
+  <tr><td>{{ f.proveedor.numero }}</td><td>{{ f.proveedor.nombre_mostrar }}</td><td class="mono">{{ f.proveedor.identificacion_enmascarada }}</td>
+    <td class="num">{{ f.cantidad }}</td><td class="num">${{ f.monto|floatformat:2|intcomma }}</td><td class="num">${{ f.exencion|floatformat:2|intcomma }}</td>
+    <td class="num">${{ f.base|floatformat:2|intcomma }}</td><td class="num">${{ f.retencion|floatformat:2|intcomma }}</td></tr>
+  {% empty %}<tr><td colspan="8" class="vacio">No hay pagos en este trimestre.</td></tr>
+  {% endfor %}
+  </tbody>
+  {% if filas %}<tfoot><tr><th colspan="4">Total</th><th class="num">${{ totales.monto|floatformat:2|intcomma }}</th><th class="num">${{ totales.exencion|floatformat:2|intcomma }}</th><th class="num">${{ totales.base|floatformat:2|intcomma }}</th><th class="num">${{ totales.retencion|floatformat:2|intcomma }}</th></tr></tfoot>{% endif %}
+</table>
+</div>
+{% endblock %}

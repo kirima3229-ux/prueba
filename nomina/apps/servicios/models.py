@@ -263,12 +263,17 @@ class PagoServicio(models.Model):
     )
     anulado_en = models.DateTimeField(null=True, blank=True)
 
+    deposito = models.ForeignKey(
+        "DepositoRetencion", null=True, blank=True, on_delete=models.PROTECT, related_name="pagos"
+    )
+
     creado = models.DateTimeField(auto_now_add=True)
     creado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
 
-    CAMPOS_ANULACION = {"estado", "motivo_anulacion", "anulado_por", "anulado_en"}
+    # Únicos campos que cambian después de registrar: la anulación y el depósito.
+    CAMPOS_ANULACION = {"estado", "motivo_anulacion", "anulado_por", "anulado_en", "deposito"}
 
     class Meta:
         ordering = ["-fecha", "-id"]
@@ -289,6 +294,67 @@ class PagoServicio(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ErrorPagoInmutable("Los pagos no se borran; se anulan.")
+
+
+class DepositoRetencion(models.Model):
+    """
+    Depósito en Hacienda de la retención por servicios prestados de un rango
+    de fechas. Agrupa los pagos con retención de ese rango. No se edita: si se
+    registró por error, se anula (los pagos quedan pendientes otra vez).
+    """
+
+    class Estado(models.TextChoices):
+        REGISTRADO = "registrado", "Registrado"
+        ANULADO = "anulado", "Anulado"
+
+    compania = models.ForeignKey(Compania, on_delete=models.PROTECT, related_name="depositos_retencion")
+    desde = models.DateField("pagos desde")
+    hasta = models.DateField("pagos hasta")
+    fecha_deposito = models.DateField("fecha del depósito")
+    confirmacion = models.CharField("número de confirmación (SURI)", max_length=60, blank=True)
+    monto = models.DecimalField("monto depositado", max_digits=12, decimal_places=2)
+    notas = models.CharField(max_length=200, blank=True)
+    estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.REGISTRADO)
+    motivo_anulacion = models.CharField(max_length=200, blank=True)
+    anulado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    anulado_en = models.DateTimeField(null=True, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    CAMPOS_ANULACION = {"estado", "motivo_anulacion", "anulado_por", "anulado_en"}
+
+    class Meta:
+        ordering = ["-hasta", "-id"]
+        verbose_name = "depósito de retención"
+        verbose_name_plural = "depósitos de retención"
+
+    def __str__(self):
+        return f"Depósito {self.desde:%m/%d/%Y}–{self.hasta:%m/%d/%Y} ${self.monto:,.2f}"
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            campos = set(kwargs.get("update_fields") or ())
+            if not campos or not campos <= self.CAMPOS_ANULACION:
+                raise ErrorPagoInmutable("Un depósito registrado no se modifica; anúlelo y regístrelo de nuevo.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ErrorPagoInmutable("Los depósitos no se borran; se anulan.")
+
+    def retencion_actual(self) -> Decimal:
+        """Retención de los pagos incluidos que siguen activos (cambia si se anula un pago)."""
+        total = self.pagos.filter(estado=PagoServicio.Estado.REGISTRADO).aggregate(t=models.Sum("retencion"))["t"]
+        return total or Decimal("0")
+
+    @property
+    def diferencia(self) -> Decimal:
+        if self.estado == self.Estado.ANULADO:
+            return Decimal("0")
+        return self.monto - self.retencion_actual()
 
 
 def acumulado_del_anio(proveedor, anio: int) -> Decimal:

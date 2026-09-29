@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Depósito{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'servicios:lista' %}">Servicios prestados</a> › <a href="{% url 'servicios:depositos' %}">Depósitos</a></div>
+<div class="encabezado"><h1>Depósito {{ deposito.desde|date:"m/d/Y" }} – {{ deposito.hasta|date:"m/d/Y" }}
+  {% if deposito.estado == "anulado" %}<span class="etiqueta roja">Anulado</span>{% else %}<span class="etiqueta verde">Registrado</span>{% endif %}</h1></div>
+{% if deposito.estado == "anulado" %}<div class="mensaje error">Anulado por {{ deposito.anulado_por.username }} el {{ deposito.anulado_en|date:"m/d/Y h:i A" }}: {{ deposito.motivo_anulacion }}</div>
+{% elif deposito.diferencia %}<div class="mensaje warning">Después del depósito se anularon pagos incluidos: se depositaron ${{ deposito.diferencia|floatformat:2|intcomma }} de más. Revise si corresponde un crédito o ajuste con Hacienda.</div>{% endif %}
+<div class="tarjeta"><dl class="datos">
+  <dt>Fecha del depósito</dt><dd>{{ deposito.fecha_deposito|date:"m/d/Y" }}</dd>
+  <dt>Confirmación (SURI)</dt><dd class="mono">{{ deposito.confirmacion|default:"—" }}</dd>
+  <dt>Monto depositado</dt><dd><strong>${{ deposito.monto|floatformat:2|intcomma }}</strong></dd>
+  <dt>Notas</dt><dd>{{ deposito.notas|default:"—" }}</dd>
+  <dt>Registrado por</dt><dd>{{ deposito.creado_por.username|default:"—" }} el {{ deposito.creado|date:"m/d/Y h:i A" }}</dd>
+</dl></div>
+<div class="tarjeta"><h2>Pagos incluidos</h2>
+  <div class="tabla-contenedor"><table>
+    <thead><tr><th>Fecha</th><th>Proveedor</th><th>Factura</th><th class="num">Monto</th><th class="num">Retención</th><th></th></tr></thead>
+    <tbody>{% for p in pagos %}<tr><td><a href="{% url 'servicios:pago_detalle' p.pk %}">{{ p.fecha|date:"m/d/Y" }}</a></td><td>{{ p.proveedor.nombre_mostrar }}</td><td>{{ p.referencia|default:"—" }}</td>
+      <td class="num">${{ p.monto|floatformat:2|intcomma }}</td><td class="num">${{ p.retencion|floatformat:2|intcomma }}</td>
+      <td>{% if p.estado == "anulado" %}<span class="etiqueta roja">Pago anulado</span>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="6" class="vacio">{% if deposito.estado == "anulado" %}Los pagos volvieron a quedar pendientes.{% else %}Sin pagos.{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% if deposito.estado == "registrado" and user.puede_editar %}
+<form method="post" action="{% url 'servicios:deposito_anular' deposito.pk %}" class="tarjeta" data-confirmar="¿Anular este depósito? Sus pagos volverán a quedar pendientes.">
+  {% csrf_token %}
+  <h2>Anular depósito</h2>
+  <p class="texto-suave">Úselo solo si el depósito se registró por error. Los pagos vuelven a quedar pendientes de depositar.</p>
+  {% include "_form.html" %}
+  <button class="boton peligro" type="submit">Anular depósito</button>
+</form>
+{% endif %}
+<div class="tarjeta"><h2>Historial</h2>{% include "_historial.html" %}</div>
+{% endblock %}

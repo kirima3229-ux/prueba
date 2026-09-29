@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from apps.auditoria.models import RegistroAuditoria
 from apps.companias.models import EstadoVerificacion
+from apps.servicios.depositos import total_pendiente
 
 
 def inicio(request):
@@ -19,6 +20,7 @@ def inicio(request):
             relevos_vencidos=compania.proveedores_servicios.filter(
                 activo=True, relevo_vigente_hasta__lt=timezone.localdate()
             ).exclude(relevo="ninguno"),
+            retencion_pendiente=total_pendiente(compania),
         )
     if request.user.es_admin:
         contexto["actividad"] = RegistroAuditoria.objects.all()[:10]

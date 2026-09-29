@@ -200,3 +200,17 @@ class ConfigRetencionForm(forms.ModelForm):
         if self.instance.pk:
             self.fields["anio"].disabled = True
             self.fields["marcar_verificado"].initial = self.instance.estado == "verificado"
+
+
+class DepositoForm(forms.Form):
+    desde = forms.DateField(label="Pagos desde", widget=FechaInput())
+    hasta = forms.DateField(label="Pagos hasta", widget=FechaInput())
+    fecha_deposito = forms.DateField(label="Fecha del depósito", widget=FechaInput())
+    confirmacion = forms.CharField(label="Número de confirmación (SURI)", max_length=60, required=False)
+    notas = forms.CharField(max_length=200, required=False)
+
+    def clean(self):
+        datos = super().clean()
+        if datos.get("desde") and datos.get("hasta") and datos["hasta"] < datos["desde"]:
+            self.add_error("hasta", "Debe ser igual o posterior a la fecha inicial.")
+        return datos

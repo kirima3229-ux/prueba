@@ -39,6 +39,7 @@ class CompaniaForm(forms.ModelForm):
             "persona_contacto",
             "email_contacto",
             "frecuencia_pago",
+            "frecuencia_deposito",
             "numero_empleados",
             "activa",
         ]

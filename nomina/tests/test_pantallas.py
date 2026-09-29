@@ -33,8 +33,12 @@ def datos(compania, admin):
     anulado, _ = pagos.registrar(proveedor=entidad, fecha=date.today(), monto=Decimal("200"), usuario=admin, numero_cheque="2")
     anulado.estado = "anulado"
     anulado.save(update_fields=["estado"])
+    from apps.servicios import depositos
+
+    deposito = depositos.registrar(compania=compania, desde=date(2000, 1, 1), hasta=date.today(),
+                                   fecha_deposito=date.today(), confirmacion="X", usuario=admin)
     registrar(accion=Accion.LOGIN, usuario=admin, descripcion="prueba", cambios={"campo": {"antes": 1, "despues": 2}})
-    return {"compania": compania, "depto": depto, "cfse": cfse, "tasas": tasas, "empleado": empleado, "inactivo": inactivo, "proveedor": proveedor, "entidad": entidad, "pago": pago, "anulado": anulado}
+    return {"compania": compania, "depto": depto, "cfse": cfse, "tasas": tasas, "empleado": empleado, "inactivo": inactivo, "proveedor": proveedor, "entidad": entidad, "pago": pago, "anulado": anulado, "deposito": deposito}
 
 
 def _pantallas(d, admin):
@@ -72,6 +76,12 @@ def _pantallas(d, admin):
         reverse("servicios:pago_detalle", args=[d["anulado"].pk]),
         reverse("servicios:importar_pagos"),
         reverse("servicios:resumen"),
+        reverse("servicios:trimestral"),
+        reverse("servicios:trimestral") + "?anio=2026&trimestre=1",
+        reverse("servicios:depositos"),
+        reverse("servicios:deposito_nuevo"),
+        reverse("servicios:deposito_nuevo") + "?desde=2026-01-01&hasta=2026-12-31",
+        reverse("servicios:deposito_detalle", args=[d["deposito"].pk]),
     ], [
         reverse("servicios:config_lista"),
         reverse("servicios:config_nueva"),

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Depósitos de retención{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'servicios:lista' %}">Servicios prestados</a></div>
+<div class="encabezado">
+  <h1>Depósitos de la retención — {{ anio }}</h1>
+  {% if user.puede_editar %}<div class="acciones"><a class="boton" href="{% url 'servicios:deposito_nuevo' %}">Registrar depósito</a></div>{% endif %}
+</div>
+{% include "servicios/_submenu.html" %}
+<div class="rejilla">
+  <div class="tarjeta"><div class="cifra">${{ pendiente|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Retención pendiente de depositar ({{ pagos_pendientes }} pago{{ pagos_pendientes|pluralize }})</div></div>
+  <div class="tarjeta"><div class="cifra">{{ compania_activa.get_frecuencia_deposito_display }}</div><div class="cifra-etiqueta">Frecuencia de depósito de la compañía</div></div>
+</div>
+<form class="filtros" method="get">
+  <div class="campo"><label for="anio">Año</label><input class="buscar" id="anio" name="anio" type="number" min="2000" max="2100" value="{{ anio }}"></div>
+  <button class="boton" type="submit">Ver</button>
+</form>
+<div class="tabla-contenedor">
+<table>
+  <thead><tr><th>Período de pagos</th><th>Fecha del depósito</th><th>Confirmación</th><th class="num">Pagos</th><th class="num">Monto depositado</th><th>Estado</th></tr></thead>
+  <tbody>
+  {% for d in depositos %}
+  <tr>
+    <td><a href="{% url 'servicios:deposito_detalle' d.pk %}">{{ d.desde|date:"m/d/Y" }} – {{ d.hasta|date:"m/d/Y" }}</a></td>
+    <td>{{ d.fecha_deposito|date:"m/d/Y" }}</td>
+    <td class="mono">{{ d.confirmacion|default:"—" }}</td>
+    <td class="num">{{ d.pagos.count }}</td>
+    <td class="num">${{ d.monto|floatformat:2|intcomma }}</td>
+    <td>{% if d.estado == "anulado" %}<span class="etiqueta roja">Anulado</span>{% elif d.diferencia %}<span class="etiqueta amarilla">Revisar</span>{% else %}<span class="etiqueta verde">Registrado</span>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="6" class="vacio">No hay depósitos en {{ anio }}.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -37,6 +37,8 @@ class Accion(models.TextChoices):
     PAGO_SERVICIO_REGISTRADO = "pago_servicio_registrado", "Pago por servicios registrado"
     PAGO_SERVICIO_ANULADO = "pago_servicio_anulado", "Pago por servicios anulado"
     PAGOS_IMPORTADOS = "pagos_importados", "Pagos por servicios importados"
+    DEPOSITO_REGISTRADO = "deposito_registrado", "Depósito de retención registrado"
+    DEPOSITO_ANULADO = "deposito_anulado", "Depósito de retención anulado"
     CONFIGURACION_MODIFICADA = "configuracion_modificada", "Configuración modificada"
     NOMINA_PROCESADA = "nomina_procesada", "Nómina procesada"
     NOMINA_REVERSADA = "nomina_reversada", "Nómina reversada"

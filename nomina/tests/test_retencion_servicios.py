@@ -78,3 +78,10 @@ def test_explicacion_legible():
 def test_retencion_esperada_para_conciliar():
     # Tres pagos de $400 al 10%: 0 + 30 + 40 = 70.
     assert retencion_esperada([(D("400"), D("10"))] * 3, D("500")) == D("70.00")
+
+
+def test_relevo_parcial_respeta_los_primeros_500_al_cruzar_el_umbral():
+    # Confirmado por Quality Group: con relevo parcial, los primeros $500 del año siguen exentos.
+    r = calc("1000", "400", tratamiento=Tratamiento.RELEVO_PARCIAL, tasa_relevo_parcial=D("5"))
+    assert r.exencion_aplicada == D("100") and r.base_sujeta == D("900")
+    assert r.retencion == D("45.00")
