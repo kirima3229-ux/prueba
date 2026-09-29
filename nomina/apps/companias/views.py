@@ -9,9 +9,9 @@ from apps.auditoria.models import RegistroAuditoria
 from apps.auditoria.servicios import Accion, diferencias, instantanea, registrar
 from apps.core.permisos import requiere_admin, requiere_edicion
 
-from .forms import ClasificacionCFSEForm, CompaniaForm, DepartamentoForm, TasasCompaniaForm
+from .forms import ClasificacionCFSEForm, CompaniaForm, DepartamentoForm, TasaCFSEForm, TasasCompaniaForm
 from .middleware import CLAVE_SESION
-from .models import ClasificacionCFSE, Departamento, EstadoVerificacion, TasasCompania
+from .models import ClasificacionCFSE, Departamento, EstadoVerificacion, TasaCFSE, TasasCompania
 
 
 def _compania_accesible(request, pk):
@@ -49,7 +49,7 @@ def detalle(request, pk):
             "compania": compania,
             "tasas": compania.tasas.all(),
             "departamentos": compania.departamentos.all(),
-            "clasificaciones": compania.clasificaciones_cfse.all(),
+            "clasificaciones": compania.clasificaciones_cfse.prefetch_related("tasas"),
             "activos": compania.empleados.filter(activo=True).count(),
             "historial": historial,
         },
@@ -168,4 +168,31 @@ def catalogo_form(request, pk, catalogo, item_pk=None):
         request,
         "companias/catalogo_form.html",
         {"form": form, "compania": compania, "titulo": f"{'Editar' if item else 'Nuevo'} {nombre}"},
+    )
+
+
+@requiere_admin
+def tasa_cfse_form(request, pk, cls_pk, tasa_pk=None):
+    compania = _compania_accesible(request, pk)
+    clasificacion = get_object_or_404(ClasificacionCFSE, pk=cls_pk, compania=compania)
+    tasa = get_object_or_404(TasaCFSE, pk=tasa_pk, clasificacion=clasificacion) if tasa_pk else None
+    antes = instantanea(tasa) if tasa else {}
+    form = TasaCFSEForm(request.POST or None, instance=tasa, clasificacion=clasificacion)
+    if request.method == "POST" and form.is_valid():
+        tasa = form.save(commit=False)
+        tasa.clasificacion = clasificacion
+        tasa.estado = (
+            EstadoVerificacion.VERIFICADO if form.cleaned_data["marcar_verificado"] else EstadoVerificacion.POR_VERIFICAR
+        )
+        tasa.save()
+        cambios = diferencias(antes, instantanea(tasa))
+        if cambios:
+            registrar(request, Accion.TASAS_MODIFICADAS, objeto=tasa, compania=compania, cambios=cambios,
+                      descripcion=f"CFSE {clasificacion.codigo} {tasa.anio}")
+        messages.success(request, f"Tasa CFSE {clasificacion.codigo} {tasa.anio} guardada.")
+        return redirect("companias:detalle", pk=compania.pk)
+    return render(
+        request,
+        "companias/catalogo_form.html",
+        {"form": form, "compania": compania, "titulo": f"Tasa CFSE — {clasificacion}"},
     )

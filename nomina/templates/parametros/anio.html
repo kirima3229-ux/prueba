@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block titulo %}Parámetros {{ parametros.anio }}{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'parametros:inicio' %}">Configuración</a></div>
+<div class="encabezado"><h1>Parámetros de nómina {{ parametros.anio }}</h1>{% include "parametros/_estado.html" with obj=parametros %}</div>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="mensaje error">{{ form.non_field_errors }}</div>{% endif %}
+  {% for titulo, campos in form.grupos %}
+  <fieldset><legend>{{ titulo }}</legend><div class="campos-rejilla">{% for campo in campos %}{% include "_campo.html" %}{% endfor %}</div></fieldset>
+  {% endfor %}
+
+  <fieldset><legend>Tabla de retención de PR (ingreso anual)</legend>
+    {{ tramos.management_form }}
+    {% if tramos.non_form_errors %}<div class="mensaje error">{{ tramos.non_form_errors }}</div>{% endif %}
+    <table class="tabla-form"><thead><tr><th>Desde $</th><th>Hasta $ (vacío = en adelante)</th><th>Cuota fija $</th><th>Tasa sobre el exceso %</th><th>Borrar</th></tr></thead>
+      <tbody>{% for f in tramos %}<tr>{% for campo in f.hidden_fields %}{{ campo }}{% endfor %}
+        <td>{{ f.desde }}{{ f.desde.errors }}</td><td>{{ f.hasta }}{{ f.hasta.errors }}</td><td>{{ f.cuota_fija }}{{ f.cuota_fija.errors }}</td><td>{{ f.tasa }}{{ f.tasa.errors }}</td><td>{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td></tr>{% endfor %}</tbody></table>
+    <p class="texto-suave">Retención del período = (impuesto anual según la tabla sobre el salario anualizado menos exenciones y concesión) ÷ períodos del año + retención adicional del 499 R-4.</p>
+  </fieldset>
+
+  <fieldset><legend>Horas extra — multiplicadores por régimen</legend>
+    {{ reglas.management_form }}
+    <table class="tabla-form"><thead><tr><th>Régimen</th><th>Exceso 8 h diarias</th><th>Exceso 40 h semanales</th><th>Séptimo día</th><th>Período de alimentos</th></tr></thead>
+      <tbody>{% for f in reglas %}<tr>{% for campo in f.hidden_fields %}{{ campo }}{% endfor %}
+        <td>{{ f.instance.get_regimen_display }}<span class="oculto">{{ f.regimen }}</span></td><td>{{ f.diario }}</td><td>{{ f.semanal }}</td><td>{{ f.septimo_dia }}</td><td>{{ f.periodo_alimentos }}</td></tr>{% endfor %}</tbody></table>
+  </fieldset>
+
+  <fieldset><legend>Confirmación</legend>
+    {% include "_campo.html" with campo=form.notas %}
+    {% include "_campo.html" with campo=form.marcar_verificado %}
+    <p class="texto-suave">Si cambia cualquier valor sin marcar la confirmación, el año vuelve a quedar POR VERIFICAR. Las nóminas ya cerradas guardan los valores con que se calcularon.</p>
+  </fieldset>
+  <div class="acciones"><button class="boton" type="submit">Guardar</button><a class="boton secundario" href="{% url 'parametros:inicio' %}">Cancelar</a></div>
+</form>
+<div class="tarjeta"><h2>Historial de cambios</h2>{% include "_historial.html" %}</div>
+{% endblock %}

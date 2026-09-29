@@ -196,3 +196,8 @@ details summary { cursor: pointer; color: var(--primario); }
 .submenu { margin-bottom: 1rem; }
 .barra { gap: 1rem; }
 .menu a { padding: 0.45rem 0.6rem; }
+table.tabla-form td { padding: 0.3rem; }
+table.tabla-form input, table.tabla-form select { width: 100%; padding: 0.35rem 0.45rem; border: 1px solid var(--borde); border-radius: var(--radio); font: inherit; }
+.explicacion { font-size: 0.8rem; }
+.menu a { font-size: 0.93rem; padding: 0.4rem 0.5rem; }
+@media (max-width: 1400px) { .marca small { display: none; } .usuario-menu { font-size: 0.85rem; } }

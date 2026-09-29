@@ -179,3 +179,28 @@ class ClasificacionCFSE(models.Model):
 
     def __str__(self):
         return f"{self.codigo} — {self.descripcion}" if self.descripcion else self.codigo
+
+
+class TasaCFSE(models.Model):
+    """Tasa de la póliza CFSE por clasificación y año (por cada $100 de nómina)."""
+
+    clasificacion = models.ForeignKey(ClasificacionCFSE, on_delete=models.CASCADE, related_name="tasas")
+    anio = models.PositiveSmallIntegerField("año", validators=[MinValueValidator(2000), MaxValueValidator(2100)])
+    tasa_por_100 = models.DecimalField(
+        "tasa por cada $100 de nómina", max_digits=7, decimal_places=4, validators=[MinValueValidator(0)]
+    )
+    estado = models.CharField(
+        max_length=20, choices=EstadoVerificacion.choices, default=EstadoVerificacion.POR_VERIFICAR
+    )
+    modificada = models.DateTimeField(auto_now=True)
+
+    CAMPOS_NO_AUDITABLES = ("modificada",)
+
+    class Meta:
+        ordering = ["-anio"]
+        constraints = [models.UniqueConstraint(fields=["clasificacion", "anio"], name="tasa_cfse_unica")]
+        verbose_name = "tasa CFSE"
+        verbose_name_plural = "tasas CFSE"
+
+    def __str__(self):
+        return f"CFSE {self.clasificacion.codigo} {self.anio}: {self.tasa_por_100} por $100"

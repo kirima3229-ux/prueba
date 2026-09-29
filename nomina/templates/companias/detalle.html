@@ -42,7 +42,7 @@
     {% endfor %}
     </tbody>
   </table></div>
-  <p class="texto-suave">Las tasas de CFSE se configuran por clasificación en la Fase 2.</p>
+  <p class="texto-suave">Las tasas de CFSE se configuran por clasificación (abajo).</p>
 </div>
 
 <div class="rejilla">
@@ -61,8 +61,10 @@
       {% if user.puede_editar %}<a class="boton pequeno" href="{% url 'companias:catalogo_nuevo' compania.pk 'cfse' %}">Añadir</a>{% endif %}</div>
     <table><tbody>
       {% for c in clasificaciones %}
-      <tr><td>{{ c }} {% if not c.activa %}<span class="etiqueta gris">Inactiva</span>{% endif %}</td>
-        <td>{% if user.puede_editar %}<a href="{% url 'companias:catalogo_editar' compania.pk 'cfse' c.pk %}">Editar</a>{% endif %}</td></tr>
+      <tr><td>{{ c }} {% if not c.activa %}<span class="etiqueta gris">Inactiva</span>{% endif %}
+          <div class="texto-suave">{% for t in c.tasas.all %}{% if user.es_admin %}<a href="{% url 'companias:tasa_cfse_editar' compania.pk c.pk t.pk %}">{% endif %}{{ t.anio }}: {{ t.tasa_por_100 }} por $100{% if user.es_admin %}</a>{% endif %}{% if t.estado != "verificado" %} <span class="etiqueta amarilla">POR VERIFICAR</span>{% endif %}{% if not forloop.last %} · {% endif %}{% empty %}Sin tasas{% endfor %}</div></td>
+        <td>{% if user.puede_editar %}<a href="{% url 'companias:catalogo_editar' compania.pk 'cfse' c.pk %}">Editar</a>{% endif %}
+          {% if user.es_admin %}· <a href="{% url 'companias:tasa_cfse_nueva' compania.pk c.pk %}">Añadir tasa</a>{% endif %}</td></tr>
       {% empty %}<tr><td class="vacio">Sin clasificaciones.</td></tr>{% endfor %}
     </tbody></table>
   </div>

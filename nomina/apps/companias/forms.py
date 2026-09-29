@@ -2,7 +2,7 @@ from django import forms
 
 from apps.core.validadores import normalizar_ein
 
-from .models import ClasificacionCFSE, Compania, Departamento, TasasCompania
+from .models import ClasificacionCFSE, Compania, Departamento, TasaCFSE, TasasCompania
 
 CAMPOS_CIFRADOS = {
     "registro_comerciante": "número de registro de comerciante",
@@ -162,3 +162,24 @@ class ClasificacionCFSEForm(forms.ModelForm):
         if ClasificacionCFSE.objects.filter(compania=self.compania, codigo__iexact=codigo).exclude(pk=self.instance.pk).exists():
             raise forms.ValidationError("Ya existe esa clasificación.")
         return codigo
+
+
+class TasaCFSEForm(forms.ModelForm):
+    marcar_verificado = forms.BooleanField(label="Confirmo que la tasa es correcta (VERIFICADO)", required=False)
+
+    class Meta:
+        model = TasaCFSE
+        fields = ["anio", "tasa_por_100"]
+
+    def __init__(self, *args, clasificacion=None, **kwargs):
+        self.clasificacion = clasificacion
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["anio"].disabled = True
+            self.fields["marcar_verificado"].initial = self.instance.estado == "verificado"
+
+    def clean_anio(self):
+        anio = self.cleaned_data["anio"]
+        if TasaCFSE.objects.filter(clasificacion=self.clasificacion, anio=anio).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError("Ya hay una tasa para ese año.")
+        return anio

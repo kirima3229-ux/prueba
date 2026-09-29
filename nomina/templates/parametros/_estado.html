@@ -1,0 +1,1 @@
+{% if obj.estado == "verificado" %}<span class="etiqueta verde">Verificado</span>{% if obj.verificado_por %} <small class="texto-suave">{{ obj.verificado_por.username }} {{ obj.verificado_en|date:"m/d/Y" }}</small>{% endif %}{% else %}<span class="etiqueta amarilla">POR VERIFICAR</span>{% endif %}

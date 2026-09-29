@@ -58,6 +58,8 @@ INSTALLED_APPS = [
     "apps.cuentas",
     "apps.empleados",
     "apps.servicios",
+    "apps.parametros",
+    "apps.calculo",
 ]
 
 MIDDLEWARE = [

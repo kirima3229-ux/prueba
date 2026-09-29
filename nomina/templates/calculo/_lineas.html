@@ -1,0 +1,8 @@
+{% load humanize %}
+<table>
+  <tbody>
+  {% for l in lineas %}
+    <tr><td>{{ l.nombre }}<div class="texto-suave explicacion">{{ l.explicacion }}</div></td><td class="num">${{ l.monto|floatformat:2|intcomma }}</td></tr>
+  {% empty %}<tr><td class="vacio">—</td></tr>{% endfor %}
+  </tbody>
+</table>

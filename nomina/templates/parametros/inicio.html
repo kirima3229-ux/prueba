@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titulo %}Configuración de nómina{% endblock %}
+{% block contenido %}
+<div class="encabezado"><h1>Configuración de nómina</h1></div>
+<p class="texto-suave">Ninguna tasa, tope ni tabla está en el código: todo se configura aquí por año. Cada cambio queda en la bitácora. Mientras un valor esté <strong>POR VERIFICAR</strong>, los cálculos lo advierten.</p>
+
+<div class="tarjeta">
+  <div class="encabezado"><h2>Parámetros por año</h2>
+    <form class="filtros" method="post" action="{% url 'parametros:copiar' %}">{% csrf_token %}
+      {% include "_campo.html" with campo=copiar.origen %}{% include "_campo.html" with campo=copiar.anio %}
+      <button class="boton pequeno" type="submit">Crear año copiando</button></form></div>
+  <table>
+    <thead><tr><th>Año</th><th class="num">Tope SS</th><th class="num">Tope desempleo</th><th class="num">Tope SINOT</th><th>Tabla de retención PR</th><th>Estado</th><th></th></tr></thead>
+    <tbody>{% for p in anios %}
+      <tr><td>{{ p.anio }}</td><td class="num">${{ p.ss_tope }}</td><td class="num">${{ p.desempleo_tope }}</td><td class="num">${{ p.sinot_tope }}</td>
+        <td>{{ p.tramos.count }} tramos</td><td>{% include "parametros/_estado.html" with obj=p %}</td>
+        <td><a class="boton pequeno secundario" href="{% url 'parametros:anio' p.anio %}">Ver / editar</a></td></tr>
+    {% empty %}<tr><td colspan="7" class="vacio">Sin parámetros.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+
+<div class="tarjeta">
+  <div class="encabezado"><h2>Salario mínimo</h2><a class="boton pequeno" href="{% url 'parametros:minimo_nuevo' %}">Añadir</a></div>
+  <table><thead><tr><th>Vigente desde</th><th class="num">Por hora</th><th>Notas</th><th>Estado</th><th></th></tr></thead>
+    <tbody>{% for m in minimos %}<tr><td>{{ m.vigente_desde|date:"m/d/Y" }}</td><td class="num">${{ m.tarifa_hora }}</td><td>{{ m.notas }}</td>
+      <td>{% include "parametros/_estado.html" with obj=m %}</td><td><a class="boton pequeno secundario" href="{% url 'parametros:minimo_editar' m.pk %}">Editar</a></td></tr>{% endfor %}</tbody></table>
+</div>
+
+<div class="tarjeta">
+  <div class="encabezado"><h2>Conceptos de ingreso</h2><a class="boton pequeno" href="{% url 'parametros:ingreso_nuevo' %}">Añadir</a></div>
+  <div class="tabla-contenedor"><table>
+    <thead><tr><th>Concepto</th><th>PR</th><th>SS</th><th>Medicare</th><th>FUTA</th><th>Desempleo</th><th>SINOT</th><th>CFSE</th><th>Estado</th><th></th></tr></thead>
+    <tbody>{% for c in ingresos %}<tr{% if not c.activo %} class="texto-suave"{% endif %}><td>{{ c.nombre }} <small class="mono texto-suave">{{ c.codigo }}</small></td>
+      <td>{{ c.tributable_pr|yesno:"Sí,—" }}</td><td>{{ c.tributable_ss|yesno:"Sí,—" }}</td><td>{{ c.tributable_medicare|yesno:"Sí,—" }}</td>
+      <td>{{ c.tributable_futa|yesno:"Sí,—" }}</td><td>{{ c.tributable_desempleo|yesno:"Sí,—" }}</td><td>{{ c.tributable_sinot|yesno:"Sí,—" }}</td><td>{{ c.tributable_cfse|yesno:"Sí,—" }}</td>
+      <td>{% include "parametros/_estado.html" with obj=c %}</td><td><a class="boton pequeno secundario" href="{% url 'parametros:ingreso_editar' c.pk %}">Editar</a></td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+
+<div class="tarjeta">
+  <div class="encabezado"><h2>Conceptos de deducción</h2><a class="boton pequeno" href="{% url 'parametros:deduccion_nuevo' %}">Añadir</a></div>
+  <table><thead><tr><th>Concepto</th><th>Antes de PR</th><th>Antes de federal</th><th>Antes de SS/Medicare/desempleo</th><th>Estado</th><th></th></tr></thead>
+    <tbody>{% for c in deducciones %}<tr><td>{{ c.nombre }} <small class="mono texto-suave">{{ c.codigo }}</small></td>
+      <td>{{ c.antes_de_pr|yesno:"Sí,—" }}</td><td>{{ c.antes_de_federal|yesno:"Sí,—" }}</td><td>{{ c.antes_de_fica|yesno:"Sí,—" }}</td>
+      <td>{% include "parametros/_estado.html" with obj=c %}</td><td><a class="boton pequeno secundario" href="{% url 'parametros:deduccion_editar' c.pk %}">Editar</a></td></tr>{% endfor %}</tbody></table>
+</div>
+<p class="texto-suave">La retención por servicios prestados se configura en <a href="{% url 'servicios:config_lista' %}">Servicios → Tasa y exención</a>. Las tasas de SUTA, SINOT y CFSE de cada compañía, en la ficha de la compañía.</p>
+{% endblock %}

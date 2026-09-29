@@ -5,7 +5,7 @@ Sistema de nómina para Puerto Rico, multi-compañía, construido con Django + P
 | Fase | Contenido | Estado |
 |---|---|---|
 | 1 | Estructura, entrada y seguridad, roles, compañías, empleados, proveedores de servicios prestados, bitácora | **Completada** |
-| 2 | Configuración de tasas y tablas por año, motor de cálculo con pruebas | Pendiente |
+| 2 | Configuración de tasas y tablas por año, motor de cálculo con pruebas | **En curso** (2a completada) |
 | 3 | Flujo de nómina, talonarios, reportes | Pendiente |
 | 4 | Archivos de Hacienda, DTRH, IRS y CFSE | Pendiente |
 | 5 | Revisión de seguridad, backups, Docker y documentación final | Pendiente |
@@ -133,6 +133,35 @@ la ficha lo indica con la etiqueta "Asignado manualmente".
 
 ---
 
+## Fase 2a — configuración por año y motor de cálculo
+
+**Configuración** (menú *Configuración*, solo administradores). Todo queda **POR VERIFICAR** hasta que se confirma:
+
+- **Parámetros por año:** Seguro Social (tasas y tope), Medicare (y el adicional de 0.9% sobre $200,000), FUTA,
+  topes de desempleo estatal y SINOT, Seguro Choferil semanal, exenciones del 499 R-4, **tabla de retención de PR
+  por tramos** y **multiplicadores de horas extra** por régimen (antes de Ley 4-2017 / Ley 4-2017).
+  *Crear año copiando* prepara el año siguiente a partir del anterior.
+- **Salario mínimo** con fecha de vigencia ($9.50 desde 7/1/2023 y $10.50 desde 7/1/2024).
+- **Conceptos de ingreso** (a qué contribuciones está sujeto cada uno) y **de deducción** (antes o después de la
+  retención de PR, federal y Seguro Social/Medicare/desempleo).
+- **Tasas CFSE** por clasificación y año, en la ficha de la compañía.
+
+Valores iniciales cargados: topes del Seguro Social confirmados con la SSA ($176,100 en 2025; $184,500 en 2026) y salario
+mínimo según la Ley 47-2021. **Sin confirmar** (verificar antes de usar): la tabla de retención de PR (se cargaron los
+tramos de contribución de individuos de la Ley 52-2022), las exenciones, el Seguro Choferil, los multiplicadores
+de horas extra y la tributabilidad de propinas y del bono de Navidad.
+
+**Motor de cálculo** (`apps/calculo/motor.py`, Python puro): salario regular, horas extra según el régimen, licencias
+pagadas, otros ingresos, salarios tributables distintos para cada contribución, retención de PR anualizada con
+exenciones y concesión del 499 R-4, Seguro Social con tope, Medicare y Medicare adicional, SINOT, Seguro Choferil,
+FUTA, SUTA, aportación especial y provisión de CFSE; alertas de salario mínimo, neto negativo y valores POR VERIFICAR.
+Cada línea trae su explicación.
+
+**Simulador** (menú *Simulador*): calcula un período para un empleado sin guardar nada, para comparar con casos reales.
+
+Pendiente en la Fase 2: acumulación de vacaciones y enfermedad, bono de Navidad, calculadora de mesada (Ley 80) y
+retención federal (W-4). Pendiente en la Fase 4: archivo trimestral de servicios prestados (en espera del formato).
+
 ## Estructura
 
 ```
@@ -143,7 +172,9 @@ nomina/
   apps/cuentas/      usuarios, roles, entrada con 2FA, administración de usuarios
   apps/companias/    compañías, tasas por año, departamentos, clasificaciones CFSE
   apps/empleados/    empleados, importación Excel/CSV
-  apps/servicios/    proveedores de servicios prestados (contratistas)
+  apps/servicios/    proveedores de servicios prestados, pagos, depósitos, informes
+  apps/parametros/   configuración por año (tasas, topes, tablas, conceptos)
+  apps/calculo/      motor de cálculo (Python puro) y simulador
   templates/, static/  interfaz (HTMX servido localmente, sin CDN)
   tests/             pruebas automatizadas (pytest)
 ```

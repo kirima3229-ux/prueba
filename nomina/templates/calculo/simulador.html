@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block titulo %}Simulador de nómina{% endblock %}
+{% block contenido %}
+<div class="encabezado"><h1>Simulador de nómina — {{ compania_activa }}</h1></div>
+<p class="texto-suave">Calcula un período para un empleado <strong>sin guardar nada</strong>. Úselo para comparar el motor con casos reales conocidos. Frecuencia de pago de la compañía: {{ compania_activa.get_frecuencia_pago_display|lower }}.</p>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="mensaje error">{{ form.non_field_errors }}</div>{% endif %}
+  <fieldset><legend>Empleado y período</legend><div class="campos-rejilla">
+    {% include "_campo.html" with campo=form.empleado %}{% include "_campo.html" with campo=form.fecha_pago %}{% include "_campo.html" with campo=form.semanas_choferil %}
+  </div></fieldset>
+  <fieldset><legend>Horas</legend><div class="campos-rejilla">
+    {% for campo in form %}{% if campo.name|slice:":6" == "horas_" %}{% include "_campo.html" %}{% endif %}{% endfor %}
+  </div></fieldset>
+  <fieldset><legend>Otros ingresos y deducciones</legend>
+    <table class="tabla-form"><thead><tr><th>Otro ingreso</th><th>Monto</th><th>Deducción</th><th>Monto</th></tr></thead><tbody>
+      {% for ingreso, ingreso_monto, deduccion, deduccion_monto in form.filas_extra %}<tr>
+        <td>{{ ingreso }}</td><td>{{ ingreso_monto }}{{ ingreso_monto.errors }}</td>
+        <td>{{ deduccion }}</td><td>{{ deduccion_monto }}{{ deduccion_monto.errors }}</td>
+      </tr>{% endfor %}
+    </tbody></table>
+  </fieldset>
+  <fieldset><legend>Salarios tributables acumulados en el año (antes de este período)</legend><div class="campos-rejilla">
+    {% for campo in form %}{% if campo.name|slice:":10" == "acumulado_" %}{% include "_campo.html" %}{% endif %}{% endfor %}
+  </div><p class="texto-suave">En la Fase 3 estos acumulados se toman solos de las nóminas procesadas.</p></fieldset>
+  <button class="boton" type="submit">Calcular</button>
+</form>
+
+{% if error %}<div class="mensaje error">{{ error }}</div>{% endif %}
+{% if resultado %}
+<h2>Resultado — {{ empleado.nombre_completo }} ({{ empleado.get_regimen_efectivo_display }})</h2>
+{% for a in resultado.alertas %}<div class="mensaje warning">{{ a }}</div>{% endfor %}
+<div class="rejilla">
+  <div class="tarjeta"><div class="cifra">${{ resultado.bruto|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Bruto</div></div>
+  <div class="tarjeta"><div class="cifra">${{ resultado.total_descuentos|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Retenciones y deducciones</div></div>
+  <div class="tarjeta"><div class="cifra">${{ resultado.neto|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Neto a pagar</div></div>
+  <div class="tarjeta"><div class="cifra">${{ resultado.costo_total|floatformat:2|intcomma }}</div><div class="cifra-etiqueta">Costo total patronal</div></div>
+</div>
+<div class="tarjeta"><h3>Ingresos</h3>{% include "calculo/_lineas.html" with lineas=resultado.ingresos %}</div>
+<div class="tarjeta"><h3>Retenciones al empleado</h3>{% include "calculo/_lineas.html" with lineas=resultado.retenciones %}</div>
+{% if resultado.deducciones %}<div class="tarjeta"><h3>Deducciones</h3>{% include "calculo/_lineas.html" with lineas=resultado.deducciones %}</div>{% endif %}
+<div class="tarjeta"><h3>Aportaciones patronales</h3>{% include "calculo/_lineas.html" with lineas=resultado.patronales %}</div>
+<div class="tarjeta"><h3>Salarios tributables del período</h3><dl class="datos">
+  <dt>Retención PR</dt><dd>${{ resultado.tributables.pr|floatformat:2|intcomma }}</dd>
+  <dt>Seguro Social</dt><dd>${{ resultado.tributables.ss|floatformat:2|intcomma }}</dd>
+  <dt>Medicare</dt><dd>${{ resultado.tributables.medicare|floatformat:2|intcomma }}</dd>
+  <dt>FUTA</dt><dd>${{ resultado.tributables.futa|floatformat:2|intcomma }}</dd>
+  <dt>Desempleo estatal</dt><dd>${{ resultado.tributables.desempleo|floatformat:2|intcomma }}</dd>
+  <dt>SINOT</dt><dd>${{ resultado.tributables.sinot|floatformat:2|intcomma }}</dd>
+  <dt>CFSE</dt><dd>${{ resultado.tributables.cfse|floatformat:2|intcomma }}</dd>
+</dl></div>
+{% endif %}
+{% endblock %}
