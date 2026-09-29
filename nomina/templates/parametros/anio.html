@@ -19,6 +19,15 @@
     <p class="texto-suave">Retención del período = (impuesto anual según la tabla sobre el salario anualizado menos exenciones y concesión) ÷ períodos del año + retención adicional del 499 R-4.</p>
   </fieldset>
 
+  <fieldset><legend>Tablas de retención federal (Publicación 15-T, método de porcentaje anual)</legend>
+    {{ federal.management_form }}
+    {% if federal.non_form_errors %}<div class="mensaje error">{{ federal.non_form_errors }}</div>{% endif %}
+    <div class="tabla-contenedor"><table class="tabla-form"><thead><tr><th>Estado civil</th><th>Tabla</th><th>Salario anual ajustado desde $</th><th>Cuota fija $</th><th>Tasa sobre el exceso %</th><th>Borrar</th></tr></thead>
+      <tbody>{% for f in federal %}<tr>{% for campo in f.hidden_fields %}{{ campo }}{% endfor %}
+        <td>{{ f.estado_civil }}{{ f.estado_civil.errors }}</td><td>{{ f.tabla }}{{ f.tabla.errors }}</td><td>{{ f.desde }}{{ f.desde.errors }}</td><td>{{ f.cuota_fija }}{{ f.cuota_fija.errors }}</td><td>{{ f.tasa }}{{ f.tasa.errors }}</td><td>{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+    <p class="texto-suave">Sólo para empleados con W-4 federal. Columnas A, C y D de las tablas anuales de la Publicación 15-T: «Estándar» y «Paso 2 marcado» (W-4 de 2020 o posterior). El W-4 de 2019 o anterior usa la tabla estándar de soltero o de casado.</p>
+  </fieldset>
+
   <fieldset><legend>Horas extra — multiplicadores por régimen</legend>
     {{ reglas.management_form }}
     <table class="tabla-form"><thead><tr><th>Régimen</th><th>Exceso 8 h diarias</th><th>Exceso 40 h semanales</th><th>Séptimo día</th><th>Período de alimentos</th></tr></thead>

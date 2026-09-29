@@ -184,12 +184,11 @@ def test_seguro_choferil():
 
 
 def test_alertas():
-    emp = motor.Empleado(regimen="ley4", tipo_pago="hora", tarifa=D("9"), w4_aplica=True)
+    emp = motor.Empleado(regimen="ley4", tipo_pago="hora", tarifa=D("9"))
     r = calc(emp, deducciones=[Monto(PRESTAMO, D("1000"))])
     textos = " ".join(r.alertas)
     assert "salario mínimo" in textos
     assert "negativo" in textos
-    assert "W-4" in textos
     sin_verificar = motor.Parametros(**{**PARAMS.__dict__, "verificado": False})
     r = motor.calcular(empleado=POR_HORA, parametros=sin_verificar, tasas=TASAS, frecuencia="semanal",
                        horas=Horas(regulares=D("40")))

@@ -12,6 +12,7 @@ from .models import (
     ReglaLicencia,
     ReglaMesada,
     SalarioMinimo,
+    TramoRetencionFederal,
     TramoRetencionPR,
 )
 
@@ -38,6 +39,7 @@ GRUPOS_PARAMETROS = [
         "exencion_personal_individuo", "exencion_personal_casado", "exencion_dependiente",
         "exencion_dependiente_custodia", "exencion_veterano",
     ]),
+    ("Retención federal (W-4, Publicación 15-T)", ["fed_ajuste_casado", "fed_ajuste_otro", "fed_valor_exencion"]),
     ("Vacaciones y enfermedad — general", [
         "horas_por_dia", "limite_patrono_pequeno_licencias", "tope_vacaciones_meses", "tope_enfermedad_dias",
     ]),
@@ -57,6 +59,10 @@ class ParametrosForm(VerificarMixin, forms.ModelForm):
 
 TramosFormSet = inlineformset_factory(
     ParametrosAnuales, TramoRetencionPR, fields=["desde", "hasta", "cuota_fija", "tasa"], extra=1, can_delete=True
+)
+FederalesFormSet = inlineformset_factory(
+    ParametrosAnuales, TramoRetencionFederal, fields=["estado_civil", "tabla", "desde", "cuota_fija", "tasa"],
+    extra=1, can_delete=True,
 )
 ReglasFormSet = inlineformset_factory(
     ParametrosAnuales, ReglaHorasExtra,
@@ -103,7 +109,7 @@ class ConceptoIngresoForm(VerificarMixin, forms.ModelForm):
         model = ConceptoIngreso
         fields = [
             "codigo", "nombre", "tributable_pr", "tributable_ss", "tributable_medicare", "tributable_futa",
-            "tributable_desempleo", "tributable_sinot", "tributable_cfse", "activo", "notas",
+            "tributable_desempleo", "tributable_sinot", "tributable_cfse", "tributable_federal", "activo", "notas",
         ]
         widgets = {"notas": forms.Textarea(attrs={"rows": 2})}
 

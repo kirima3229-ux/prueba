@@ -253,7 +253,8 @@ def f941(compania, anio, trimestre) -> Planilla941:
     federal = montos["retencion_federal"]
     return Planilla941(
         anio=anio, trimestre=trimestre, empleados_12=empleados_al_12(compania, anio, desde.month + 2),
-        salarios=sum((d.total_tributable for d in datos), CERO) if federal else CERO, retencion_federal=federal,
+        salarios=q(resultados(compania, desde, hasta).aggregate(t=Sum("trib_federal"))["t"]) if federal else CERO,
+        retencion_federal=federal,
         salarios_ss=sum((d.salarios_ss for d in datos), CERO), propinas_ss=sum((d.propinas_ss for d in datos), CERO),
         salarios_medicare=sum((d.salarios_medicare for d in datos), CERO), sujeto_medicare_adicional=adicional_base,
         retenido_real=sum(montos.values(), CERO), por_mes=por_mes, por_dia=list(por_fecha.items()),

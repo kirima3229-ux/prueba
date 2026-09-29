@@ -129,6 +129,11 @@ class Empleado(models.Model):
     w4_estado_civil = models.CharField(
         "estado civil (W-4)", max_length=10, choices=EstadoCivilW4.choices, default=EstadoCivilW4.SOLTERO
     )
+    w4_version = models.CharField(
+        "versión del W-4", max_length=4, choices=[("2020", "2020 o posterior"), ("2019", "2019 o anterior")],
+        default="2020",
+    )
+    w4_exenciones = models.PositiveSmallIntegerField("W-4 2019 o anterior: exenciones (allowances)", default=0)
     w4_paso2 = models.BooleanField("W-4 paso 2 marcado (múltiples empleos)", default=False)
     w4_dependientes = models.DecimalField("W-4 paso 3: dependientes ($)", max_digits=10, decimal_places=2, default=0)
     w4_otros_ingresos = models.DecimalField("W-4 paso 4(a): otros ingresos ($)", max_digits=10, decimal_places=2, default=0)

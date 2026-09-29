@@ -46,7 +46,9 @@
     <dt>Retención adicional</dt><dd>${{ empleado.r4_retencion_adicional|floatformat:2 }}</dd>
   </dl></div>
   <div class="tarjeta"><h2>Federal (W-4) y depósito</h2><dl class="datos">
-    <dt>W-4</dt><dd>{% if empleado.w4_aplica %}{{ empleado.get_w4_estado_civil_display }}{% else %}No aplica{% endif %}</dd>
+    <dt>W-4</dt><dd>{% if empleado.w4_aplica %}{{ empleado.get_w4_estado_civil_display }} · {{ empleado.get_w4_version_display }}
+      {% if empleado.w4_version == "2019" %}· {{ empleado.w4_exenciones }} exención(es){% else %}{% if empleado.w4_paso2 %}· paso 2 marcado{% endif %}{% if empleado.w4_dependientes %} · dependientes ${{ empleado.w4_dependientes|floatformat:2 }}{% endif %}{% endif %}
+      {% if empleado.w4_retencion_adicional %} · adicional ${{ empleado.w4_retencion_adicional|floatformat:2 }}{% endif %}{% else %}No aplica{% endif %}</dd>
     <dt>Depósito directo</dt><dd>{% if empleado.deposito_directo %}{{ empleado.banco_nombre }} · ruta {{ empleado.banco_ruta }} · cuenta <span class="mono">{{ empleado.cuenta_enmascarada }}</span> ({{ empleado.get_banco_tipo_cuenta_display }}){% else %}No{% endif %}</dd>
   </dl></div>
 </div>

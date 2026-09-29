@@ -177,6 +177,7 @@ class ResultadoNomina(models.Model):
     trib_desempleo = models.DecimalField(max_digits=12, decimal_places=2)
     trib_sinot = models.DecimalField(max_digits=12, decimal_places=2)
     trib_cfse = models.DecimalField(max_digits=12, decimal_places=2)
+    trib_federal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     alertas = models.JSONField(default=list, blank=True)
 
     class Meta:

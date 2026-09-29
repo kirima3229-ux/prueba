@@ -82,6 +82,11 @@ class Parametros:
     salario_minimo: Decimal | None = None
     salario_minimo_propinas: Decimal | None = None  # mínimo en efectivo para empleados con propinas
     verificado: bool = False
+    # Retención federal (Publicación 15-T): (estado civil, «estandar» | «paso2») -> tramos anuales
+    tramos_federales: dict = field(default_factory=dict)
+    fed_ajuste_casado: Decimal = Decimal("12900")
+    fed_ajuste_otro: Decimal = Decimal("8600")
+    fed_valor_exencion: Decimal = Decimal("4300")
 
 
 @dataclass(frozen=True)
@@ -110,6 +115,14 @@ class Empleado:
     r4_concesion_deducciones: Decimal = CERO
     r4_retencion_adicional: Decimal = CERO
     w4_aplica: bool = False
+    w4_version: str = "2020"  # "2020" (2020 o posterior) | "2019" (2019 o anterior, con exenciones)
+    w4_estado_civil: str = "single"  # single | married | head
+    w4_paso2: bool = False
+    w4_exenciones: int = 0
+    w4_dependientes: Decimal = CERO  # paso 3 (anual)
+    w4_otros_ingresos: Decimal = CERO  # paso 4(a) (anual)
+    w4_deducciones: Decimal = CERO  # paso 4(b) (anual)
+    w4_retencion_adicional: Decimal = CERO  # paso 4(c) (por período)
 
 
 @dataclass(frozen=True)
@@ -136,6 +149,7 @@ class Concepto:
     desempleo: bool = True
     sinot: bool = True
     cfse: bool = True
+    federal: bool = True
 
 
 @dataclass(frozen=True)
@@ -262,6 +276,47 @@ def impuesto_por_tabla(ingreso_anual: Decimal, tramos) -> tuple[Decimal, str]:
             )
             return impuesto, texto
     raise ErrorCalculo("La tabla de retención no tiene tramos.")
+
+
+def retencion_federal(base: Decimal, periodos: int, e: Empleado, p: Parametros) -> tuple[Decimal, str]:
+    """Publicación 15-T, Hoja 1A (método de porcentaje para sistemas automatizados)."""
+    anual = base * periodos
+    partes = [f"{dinero(base)} × {periodos} períodos = {dinero(anual)} anual"]
+    creditos = CERO
+    if e.w4_version == "2019":
+        estado = "married" if e.w4_estado_civil == "married" else "single"
+        tabla = "estandar"
+        exenciones = p.fed_valor_exencion * e.w4_exenciones
+        ajustado = max(CERO, anual - exenciones)
+        partes.append(f"W-4 de 2019 o anterior: menos {e.w4_exenciones} exención(es) × {dinero(p.fed_valor_exencion)}")
+    else:
+        estado = e.w4_estado_civil
+        tabla = "paso2" if e.w4_paso2 else "estandar"
+        ajuste = CERO if e.w4_paso2 else (p.fed_ajuste_casado if estado == "married" else p.fed_ajuste_otro)
+        ajustado = max(CERO, anual + e.w4_otros_ingresos - e.w4_deducciones - ajuste)
+        if e.w4_otros_ingresos:
+            partes.append(f"más otros ingresos {dinero(e.w4_otros_ingresos)}")
+        if e.w4_deducciones:
+            partes.append(f"menos deducciones {dinero(e.w4_deducciones)}")
+        if ajuste:
+            partes.append(f"menos ajuste {dinero(ajuste)}")
+        else:
+            partes.append("paso 2 marcado (tabla de múltiples empleos)")
+        creditos = e.w4_dependientes
+    partes.append(f"= {dinero(ajustado)} ajustado")
+    tramos = p.tramos_federales.get((estado, tabla))
+    if not tramos:
+        raise ErrorCalculo(f"No hay tabla de retención federal ({estado}, {tabla}) para {p.anio}.")
+    impuesto, texto = impuesto_por_tabla(ajustado, tramos)
+    por_periodo = impuesto / periodos
+    neto = max(CERO, por_periodo - creditos / periodos)
+    total = redondear(neto + e.w4_retencion_adicional)
+    detalle = ", ".join(partes) + f". {texto} ÷ {periodos} = {dinero(redondear(por_periodo))}"
+    if creditos:
+        detalle += f" menos créditos {dinero(creditos)} ÷ {periodos} = {dinero(redondear(neto))}"
+    if e.w4_retencion_adicional:
+        detalle += f" + retención adicional {dinero(e.w4_retencion_adicional)}"
+    return total, detalle + "."
 
 
 def _base_con_tope(tributable: Decimal, acumulado: Decimal, tope: Decimal) -> Decimal:
@@ -396,7 +451,9 @@ def calcular(
 
     pre_pr = sum((redondear(d.monto) for d in deducciones if d.concepto.antes_de_pr), CERO)
     pre_fica = sum((redondear(d.monto) for d in deducciones if d.concepto.antes_de_fica), CERO)
+    pre_federal = sum((redondear(d.monto) for d in deducciones if d.concepto.antes_de_federal), CERO)
     trib = {
+        "federal": max(CERO, suma("federal") - pre_federal),
         "pr": max(CERO, suma("pr") - pre_pr),
         "ss": max(CERO, suma("ss") - pre_fica),
         "medicare": max(CERO, suma("medicare") - pre_fica),
@@ -440,9 +497,9 @@ def calcular(
         )
     )
     if empleado.w4_aplica:
-        r.alertas.append(
-            "El empleado tiene W-4 federal: la retención federal todavía no se calcula (falta la tabla del IRS)."
-        )
+        monto, explicacion = retencion_federal(trib["federal"], periodos, empleado, p)
+        r.retenciones.append(Linea("retencion_federal", "Retención federal (W-4)", monto, trib["federal"], None,
+                                   explicacion))
 
     # 7. Seguro Social y Medicare
     base_ss = _base_con_tope(trib["ss"], acumulados.ss, p.ss_tope)

@@ -28,8 +28,8 @@ SECCIONES = [
         "r4_veterano", "r4_concesion_deducciones", "r4_retencion_adicional",
     ]),
     ("Retención federal (W-4) — solo si aplica", [
-        "w4_aplica", "w4_estado_civil", "w4_paso2", "w4_dependientes", "w4_otros_ingresos",
-        "w4_deducciones", "w4_retencion_adicional",
+        "w4_aplica", "w4_version", "w4_estado_civil", "w4_paso2", "w4_exenciones", "w4_dependientes",
+        "w4_otros_ingresos", "w4_deducciones", "w4_retencion_adicional",
     ]),
     ("Depósito directo", [
         "deposito_directo", "banco_nombre", "banco_ruta", "cuenta_nueva", "banco_tipo_cuenta",
@@ -54,6 +54,12 @@ class EmpleadoForm(forms.ModelForm):
             "notas": forms.Textarea(attrs={"rows": 3}),
         }
 
+    def clean_w4_version(self):
+        return self.cleaned_data.get("w4_version") or "2020"
+
+    def clean_w4_exenciones(self):
+        return self.cleaned_data.get("w4_exenciones") or 0
+
     def __init__(self, *args, compania, **kwargs):
         self.compania = compania
         super().__init__(*args, **kwargs)
@@ -64,6 +70,9 @@ class EmpleadoForm(forms.ModelForm):
         )
         for nombre in ("ssn_nuevo", "cuenta_nueva"):
             self.fields[nombre].widget.attrs["autocomplete"] = "off"
+        # Campos del W-4 que sólo importan si aplica la retención federal: opcionales, con su valor por defecto.
+        for nombre in ("w4_version", "w4_exenciones"):
+            self.fields[nombre].required = False
         if self.instance.pk:
             self.fields["ssn_nuevo"].help_text = (
                 f"Actual: {self.instance.ssn_enmascarado}. Deje en blanco para no cambiarlo."

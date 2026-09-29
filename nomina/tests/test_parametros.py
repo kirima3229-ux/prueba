@@ -41,7 +41,8 @@ def _datos_anio(p):
         "ss_tasa_empleado", "ss_tasa_patrono", "ss_tope", "medicare_tasa_empleado", "medicare_tasa_patrono",
         "medicare_adicional_tasa", "medicare_adicional_umbral", "futa_tasa", "futa_tope", "desempleo_tope",
         "sinot_tope", "choferil_empleado_semanal", "choferil_patrono_semanal", "exencion_personal_individuo",
-        "exencion_personal_casado", "exencion_dependiente", "exencion_dependiente_custodia", "exencion_veterano")}
+        "exencion_personal_casado", "exencion_dependiente", "exencion_dependiente_custodia", "exencion_veterano",
+        "fed_ajuste_casado", "fed_ajuste_otro", "fed_valor_exencion")}
     tramos = list(p.tramos.all())
     datos.update({"tramos-TOTAL_FORMS": len(tramos), "tramos-INITIAL_FORMS": len(tramos),
                   "tramos-MIN_NUM_FORMS": 0, "tramos-MAX_NUM_FORMS": 1000})
@@ -58,6 +59,7 @@ def _datos_anio(p):
     datos.update({"horas_por_dia": p.horas_por_dia, "limite_patrono_pequeno_licencias": p.limite_patrono_pequeno_licencias,
                   "tope_vacaciones_meses": p.tope_vacaciones_meses, "tope_enfermedad_dias": p.tope_enfermedad_dias})
     for prefijo, filas, campos in (
+        ("federal", list(p.tramos_federales.all()), ("estado_civil", "tabla", "desde", "cuota_fija", "tasa")),
         ("licencias", list(p.reglas_licencia.all()),
          ("tipo", "regimen", "tamano", "anios_desde", "anios_hasta", "horas_minimas_mes", "dias_por_mes")),
         ("mesada", list(p.reglas_mesada.all()),

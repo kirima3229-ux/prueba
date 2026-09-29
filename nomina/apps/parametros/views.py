@@ -13,6 +13,7 @@ from .forms import (
     ConceptoDeduccionForm,
     ConceptoIngresoForm,
     CopiarAnioForm,
+    FederalesFormSet,
     LicenciasFormSet,
     MesadaFormSet,
     ParametrosForm,
@@ -61,12 +62,13 @@ def _foto_parametros(p):
 
 FORMSETS = (
     ("tramos", TramosFormSet),
+    ("federal", FederalesFormSet),
     ("reglas", ReglasFormSet),
     ("licencias", LicenciasFormSet),
     ("bono", BonoFormSet),
     ("mesada", MesadaFormSet),
 )
-RELACIONES_COPIABLES = ("tramos", "reglas_horas_extra", "reglas_licencia", "reglas_bono", "reglas_mesada")
+RELACIONES_COPIABLES = ("tramos", "tramos_federales", "reglas_horas_extra", "reglas_licencia", "reglas_bono", "reglas_mesada")
 
 
 @requiere_admin

@@ -85,6 +85,10 @@ class ParametrosAnuales(VerificableMixin):
     tope_enfermedad_dias = models.DecimalField(
         "tope de licencia por enfermedad acumulada (días)", max_digits=5, decimal_places=2, default=15
     )
+    # Retención federal (Publicación 15-T, Hoja 1A)
+    fed_ajuste_casado = _dinero("W-4 2020+: ajuste línea 1g, casado declarando conjuntamente ($)", default=12900)
+    fed_ajuste_otro = _dinero("W-4 2020+: ajuste línea 1g, soltero o jefe de familia ($)", default=8600)
+    fed_valor_exencion = _dinero("W-4 2019 o anterior: valor de cada exención ($)", default=4300)
 
     class Meta:
         ordering = ["-anio"]
@@ -111,6 +115,33 @@ class TramoRetencionPR(models.Model):
     def __str__(self):
         hasta = f"${self.hasta:,.2f}" if self.hasta is not None else "en adelante"
         return f"${self.desde:,.2f} – {hasta}: ${self.cuota_fija:,.2f} + {self.tasa}%"
+
+
+class TramoRetencionFederal(models.Model):
+    """Tabla anual del método de porcentaje de la Publicación 15-T (salario anual ajustado)."""
+
+    class EstadoCivil(models.TextChoices):
+        CASADO = "married", "Casado declarando conjuntamente"
+        SOLTERO = "single", "Soltero o casado declarando por separado"
+        JEFE = "head", "Jefe de familia"
+
+    class Tabla(models.TextChoices):
+        ESTANDAR = "estandar", "Estándar"
+        PASO2 = "paso2", "Paso 2 marcado"
+
+    parametros = models.ForeignKey(ParametrosAnuales, on_delete=models.CASCADE, related_name="tramos_federales")
+    estado_civil = models.CharField(max_length=10, choices=EstadoCivil.choices)
+    tabla = models.CharField(max_length=10, choices=Tabla.choices)
+    desde = _dinero("desde ($)")
+    cuota_fija = _dinero("cuota fija ($)")
+    tasa = _porcentaje("tasa sobre el exceso %")
+
+    class Meta:
+        ordering = ["estado_civil", "tabla", "desde"]
+        verbose_name = "tramo de retención federal"
+
+    def __str__(self):
+        return f"{self.get_estado_civil_display()} ({self.get_tabla_display()}) desde ${self.desde:,.2f}"
 
 
 class ReglaHorasExtra(models.Model):
@@ -165,6 +196,7 @@ class ConceptoIngreso(VerificableMixin):
     tributable_desempleo = models.BooleanField("desempleo estatal (SUTA y aportación especial)", default=True)
     tributable_sinot = models.BooleanField("SINOT", default=True)
     tributable_cfse = models.BooleanField("nómina para CFSE", default=True)
+    tributable_federal = models.BooleanField("retención federal (W-4)", default=True)
     activo = models.BooleanField(default=True)
     del_sistema = models.BooleanField(default=False, editable=False)
 

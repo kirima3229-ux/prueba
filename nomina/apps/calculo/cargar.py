@@ -17,13 +17,17 @@ def salario_minimo_en(fecha: date):
 
 
 def parametros(fecha: date) -> motor.Parametros:
-    p = ParametrosAnuales.objects.prefetch_related("tramos", "reglas_horas_extra").filter(anio=fecha.year).first()
+    p = (ParametrosAnuales.objects.prefetch_related("tramos", "reglas_horas_extra", "tramos_federales")
+         .filter(anio=fecha.year).first())
     if p is None:
         raise ConfiguracionFaltante(f"No hay parámetros de nómina para {fecha.year}. Un administrador debe crearlos.")
     tramos = tuple(motor.Tramo(t.desde, t.hasta, t.cuota_fija, t.tasa) for t in p.tramos.all())
     if not tramos:
         raise ConfiguracionFaltante(f"La tabla de retención de {fecha.year} no tiene tramos.")
     minimo = salario_minimo_en(fecha)
+    federales = {}
+    for t in p.tramos_federales.all():
+        federales.setdefault((t.estado_civil, t.tabla), []).append(motor.Tramo(t.desde, None, t.cuota_fija, t.tasa))
     return motor.Parametros(
         anio=p.anio,
         ss_tasa_empleado=p.ss_tasa_empleado,
@@ -49,6 +53,10 @@ def parametros(fecha: date) -> motor.Parametros:
             r.regimen: motor.ReglaHorasExtra(r.diario, r.semanal, r.septimo_dia, r.periodo_alimentos)
             for r in p.reglas_horas_extra.all()
         },
+        tramos_federales={k: tuple(v) for k, v in federales.items()},
+        fed_ajuste_casado=p.fed_ajuste_casado,
+        fed_ajuste_otro=p.fed_ajuste_otro,
+        fed_valor_exencion=p.fed_valor_exencion,
         salario_minimo=minimo.tarifa_hora if minimo else None,
         salario_minimo_propinas=minimo.tarifa_propinas if minimo else None,
         verificado=p.verificado and (minimo is None or minimo.verificado),
@@ -80,6 +88,7 @@ def concepto_ingreso(c: ConceptoIngreso) -> motor.Concepto:
     return motor.Concepto(
         c.codigo, c.nombre, pr=c.tributable_pr, ss=c.tributable_ss, medicare=c.tributable_medicare,
         futa=c.tributable_futa, desempleo=c.tributable_desempleo, sinot=c.tributable_sinot, cfse=c.tributable_cfse,
+        federal=c.tributable_federal,
     )
 
 
@@ -110,6 +119,14 @@ def empleado(e) -> motor.Empleado:
         r4_concesion_deducciones=e.r4_concesion_deducciones,
         r4_retencion_adicional=e.r4_retencion_adicional,
         w4_aplica=e.w4_aplica,
+        w4_version=e.w4_version,
+        w4_estado_civil=e.w4_estado_civil,
+        w4_paso2=e.w4_paso2,
+        w4_exenciones=e.w4_exenciones,
+        w4_dependientes=e.w4_dependientes,
+        w4_otros_ingresos=e.w4_otros_ingresos,
+        w4_deducciones=e.w4_deducciones,
+        w4_retencion_adicional=e.w4_retencion_adicional,
     )
 
 

@@ -5,7 +5,7 @@ Sistema de nómina para Puerto Rico, multi-compañía, construido con Django + P
 | Fase | Contenido | Estado |
 |---|---|---|
 | 1 | Estructura, entrada y seguridad, roles, compañías, empleados, proveedores de servicios prestados, bitácora | Completada |
-| 2 | Configuración de tasas y tablas por año, motor de cálculo, licencias, bono y mesada | Completada (falta la retención federal W-4) |
+| 2 | Configuración de tasas y tablas por año, motor de cálculo (PR y federal W-4), licencias, bono y mesada | Completada |
 | 3 | Flujo de nómina, talonarios y cheques, reportes, NACHA, QuickBooks, pagos especiales | Completada |
 | 4 | Planillas de Hacienda, DTRH, IRS y CFSE | Hojas de trabajo completadas; archivos electrónicos pendientes de las especificaciones |
 | 5 | Revisión de seguridad, respaldos cifrados, rotación de llaves, Docker y documentación | Completada |
@@ -167,6 +167,22 @@ FUTA, SUTA, aportación especial y provisión de CFSE; alertas de salario mínim
 Cada línea trae su explicación.
 
 **Simulador** (menú *Simulador*): calcula un período para un empleado sin guardar nada, para comparar con casos reales.
+
+### Retención federal (W-4)
+
+Sólo para empleados con *aplica retención federal (W-4)* (por ejemplo, quienes no son residentes de Puerto Rico).
+Método de porcentaje para sistemas automatizados de la **Publicación 15-T, Hoja 1A**:
+
+- **W-4 de 2020 o posterior**: salario federal del período × períodos + otros ingresos (4a) − deducciones (4b) −
+  ajuste de la línea 1g ($12,900 casados, $8,600 los demás; $0 si el paso 2 está marcado) → tabla anual
+  (estándar o «paso 2 marcado») ÷ períodos − dependientes (paso 3) ÷ períodos + adicional (4c).
+- **W-4 de 2019 o anterior**: resta $4,300 por exención y usa la tabla estándar de soltero o de casado.
+- El salario federal excluye los conceptos marcados como no tributables federales (reembolsos) y las deducciones
+  «antes de la retención federal».
+- *Configuración → año* trae las tablas de 2025 y 2026 (**POR VERIFICAR**), generadas con los tramos y deducciones
+  estándar del año; la de casados de 2026 coincide con la publicada por el IRS. Se pueden editar.
+- La retención federal va a la línea 3 del 941 y a su cuenta en el asiento de QuickBooks. Para estos empleados
+  corresponde además el W-2 federal (no se genera todavía).
 
 ## Fase 2b — vacaciones, enfermedad y bono de Navidad
 

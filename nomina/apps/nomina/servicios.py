@@ -228,7 +228,8 @@ def calcular_periodo(periodo, usuario):
                 neto=r.neto, total_patronal=r.total_patronal,
                 trib_pr=r.tributables["pr"], trib_ss=r.tributables["ss"], trib_medicare=r.tributables["medicare"],
                 trib_futa=r.tributables["futa"], trib_desempleo=r.tributables["desempleo"],
-                trib_sinot=r.tributables["sinot"], trib_cfse=r.tributables["cfse"], alertas=alertas,
+                trib_sinot=r.tributables["sinot"], trib_cfse=r.tributables["cfse"],
+                trib_federal=r.tributables["federal"], alertas=alertas,
             )
             orden = 0
             for grupo, lineas in (
@@ -253,7 +254,12 @@ def calcular_periodo(periodo, usuario):
 
 def _foto_parametros(parametros, tasas):
     """Copia de los parámetros con que se calculó (queda con la nómina cerrada)."""
-    datos = {k: str(v) for k, v in asdict(parametros).items() if k not in ("tramos", "horas_extra")}
+    datos = {k: str(v) for k, v in asdict(parametros).items()
+             if k not in ("tramos", "horas_extra", "tramos_federales")}
+    datos["tramos_federales"] = {
+        f"{estado}/{tabla}": [[str(t.desde), str(t.cuota_fija), str(t.tasa)] for t in tramos]
+        for (estado, tabla), tramos in parametros.tramos_federales.items()
+    }
     datos["tramos"] = [
         {"desde": str(t.desde), "hasta": str(t.hasta) if t.hasta is not None else None,
          "cuota_fija": str(t.cuota_fija), "tasa": str(t.tasa)}
@@ -319,7 +325,8 @@ def reversar_periodo(periodo, motivo, usuario):
             requiere_recalculo=False, parametros_usados=periodo.parametros_usados, creado_por=usuario,
         )
         campos = ["bruto", "total_retenciones", "total_deducciones", "neto", "total_patronal", "horas_trabajadas",
-                  "trib_pr", "trib_ss", "trib_medicare", "trib_futa", "trib_desempleo", "trib_sinot", "trib_cfse"]
+                  "trib_pr", "trib_ss", "trib_medicare", "trib_futa", "trib_desempleo", "trib_sinot", "trib_cfse",
+                  "trib_federal"]
         for r in periodo.resultados.prefetch_related("lineas"):
             nuevo = ResultadoNomina.objects.create(
                 periodo=reverso, empleado=r.empleado, empleado_nombre=r.empleado_nombre,
