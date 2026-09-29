@@ -216,6 +216,20 @@ class ConceptoDeduccion(VerificableMixin):
     nombre = models.CharField(max_length=100)
     antes_de_pr = models.BooleanField("antes de la retención de PR", default=False)
     antes_de_federal = models.BooleanField("antes de la retención federal", default=False)
+    codigo_w2 = models.CharField(
+        "código de la casilla 12 del W-2 federal", max_length=2, blank=True, choices=[
+            ("D", "D — 401(k), aportación electiva"),
+            ("E", "E — 403(b), aportación electiva"),
+            ("G", "G — 457(b), aportación electiva"),
+            ("S", "S — SIMPLE"),
+            ("AA", "AA — Roth 401(k)"),
+            ("BB", "BB — Roth 403(b)"),
+            ("W", "W — cuenta de ahorros de salud (HSA)"),
+            ("DD", "DD — costo de la cobertura de salud del patrono"),
+            ("C", "C — seguro de vida de grupo sobre $50,000"),
+        ],
+        help_text="Sólo para empleados con W-2 federal. Vacío = no va en la casilla 12.",
+    )
     antes_de_fica = models.BooleanField(
         "antes de Seguro Social, Medicare y desempleo/SINOT", default=False
     )

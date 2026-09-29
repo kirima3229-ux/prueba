@@ -7,6 +7,7 @@
   <div class="acciones">
     <a class="boton secundario" href="?anio={{ anio }}{% if trimestre %}&trimestre={{ trimestre }}{% endif %}&formato=pdf" target="_blank">PDF</a>
     <a class="boton secundario" href="?anio={{ anio }}{% if trimestre %}&trimestre={{ trimestre }}{% endif %}&formato=xlsx">Excel</a>
+    {% if tipo.codigo == "w2" and user.puede_editar %}<a class="boton secundario" href="?anio={{ anio }}&formato=copias" target="_blank">Copias para el empleado (PDF)</a>{% endif %}
     {% if tipo.con_identificacion and user.puede_editar %}<a class="boton" href="?anio={{ anio }}{% if trimestre %}&trimestre={{ trimestre }}{% endif %}&formato=agencia" title="Con el SSN o la identificación completa, para preparar la radicación">Excel para la agencia</a>{% endif %}
   </div>
 </div>

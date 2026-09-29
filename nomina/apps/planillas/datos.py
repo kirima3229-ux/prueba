@@ -452,3 +452,69 @@ def servicios_anual(compania, anio) -> list[FilaServicios]:
     proveedores = ProveedorServicios.objects.in_bulk([d["proveedor"] for d in datos])
     filas = [FilaServicios(proveedores[d["proveedor"]], q(d["pagado"]), q(d["retenido"]), d["n"]) for d in datos]
     return sorted(filas, key=lambda f: f.proveedor.nombre_mostrar)
+
+
+# --- W-2 federal (empleados con retención federal) ----------------------------------------
+
+PLANES_DE_RETIRO = {"D", "E", "G", "S", "AA", "BB"}  # marcan «plan de retiro» en la casilla 13
+
+
+@dataclass
+class DatosW2Federal:
+    empleado: object
+    c1_salarios: Decimal = CERO  # salarios, propinas y otra compensación
+    c2_retencion_federal: Decimal = CERO
+    c3_salarios_ss: Decimal = CERO
+    c4_ss_retenido: Decimal = CERO
+    c5_salarios_medicare: Decimal = CERO
+    c6_medicare_retenido: Decimal = CERO
+    c7_propinas_ss: Decimal = CERO
+    c12: dict = field(default_factory=dict)  # código → monto
+    c14: dict = field(default_factory=dict)  # descripción → monto (informativo)
+    c16_salarios_estatales: Decimal = CERO  # Puerto Rico
+    c17_retencion_estatal: Decimal = CERO
+
+    @property
+    def c13_plan_retiro(self) -> bool:
+        return any(self.c12.get(c) for c in PLANES_DE_RETIRO)
+
+
+def w2_federal(compania, anio) -> list[DatosW2Federal]:
+    """Empleados que en el año tuvieron W-4 federal o retención federal, con cada casilla del W-2."""
+    from apps.parametros.models import ConceptoDeduccion
+
+    desde, hasta = date(anio, 1, 1), date(anio, 12, 31)
+    base = resultados(compania, desde, hasta)
+    con_federal = set(lineas(compania, desde, hasta).filter(codigo="retencion_federal")
+                      .values_list("resultado__empleado", flat=True))
+    con_federal |= set(base.filter(empleado__w4_aplica=True).values_list("empleado", flat=True))
+    if not con_federal:
+        return []
+    codigos = dict(ConceptoDeduccion.objects.exclude(codigo_w2="").values_list("codigo", "codigo_w2"))
+    montos, bases = _por_empleado_y_codigo(compania, desde, hasta)
+    totales = {d["empleado"]: d for d in base.values("empleado").annotate(
+        fed=Sum("trib_federal"), med=Sum("trib_medicare"), pr=Sum("trib_pr"))}
+    rango = w2pr_rango(compania, desde, hasta)  # separa salarios y propinas del Seguro Social
+    ss = {d.empleado.pk: d for d in rango}
+    salida = []
+    for pk, emp in _empleados(compania, desde, hasta).items():
+        if pk not in con_federal:
+            continue
+        t = totales.get(pk, {})
+        d = DatosW2Federal(
+            emp, c1_salarios=q(t.get("fed")), c2_retencion_federal=montos[(pk, "retencion", "retencion_federal")],
+            c3_salarios_ss=ss[pk].salarios_ss if pk in ss else CERO, c4_ss_retenido=montos[(pk, "retencion", "ss_empleado")],
+            c5_salarios_medicare=q(t.get("med")),
+            c6_medicare_retenido=montos[(pk, "retencion", "medicare_empleado")]
+            + montos[(pk, "retencion", "medicare_adicional")],
+            c7_propinas_ss=ss[pk].propinas_ss if pk in ss else CERO,
+            c16_salarios_estatales=q(t.get("pr")), c17_retencion_estatal=montos[(pk, "retencion", "retencion_pr")],
+        )
+        for (e, grupo, codigo), monto in montos.items():
+            if e == pk and grupo == "deduccion" and codigo in codigos and monto:
+                d.c12[codigos[codigo]] = d.c12.get(codigos[codigo], CERO) + monto
+        for codigo, texto in (("sinot_empleado", "SINOT (PR)"), ("choferil_empleado", "Choferil (PR)")):
+            if montos[(pk, "retencion", codigo)]:
+                d.c14[texto] = montos[(pk, "retencion", codigo)]
+        salida.append(d)
+    return salida

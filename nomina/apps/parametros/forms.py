@@ -122,5 +122,6 @@ class ConceptoIngresoForm(VerificarMixin, forms.ModelForm):
 class ConceptoDeduccionForm(VerificarMixin, forms.ModelForm):
     class Meta:
         model = ConceptoDeduccion
-        fields = ["codigo", "nombre", "antes_de_pr", "antes_de_federal", "antes_de_fica", "activo", "notas"]
+        fields = ["codigo", "nombre", "antes_de_pr", "antes_de_federal", "antes_de_fica", "codigo_w2", "activo",
+                  "notas"]
         widgets = {"notas": forms.Textarea(attrs={"rows": 2})}

@@ -39,9 +39,9 @@
 
 <div class="tarjeta">
   <div class="encabezado"><h2>Conceptos de deducción</h2><a class="boton pequeno" href="{% url 'parametros:deduccion_nuevo' %}">Añadir</a></div>
-  <table><thead><tr><th>Concepto</th><th>Antes de PR</th><th>Antes de federal</th><th>Antes de SS/Medicare/desempleo</th><th>Estado</th><th></th></tr></thead>
+  <table><thead><tr><th>Concepto</th><th>Antes de PR</th><th>Antes de federal</th><th>Antes de SS/Medicare/desempleo</th><th>W-2 casilla 12</th><th>Estado</th><th></th></tr></thead>
     <tbody>{% for c in deducciones %}<tr><td>{{ c.nombre }} <small class="mono texto-suave">{{ c.codigo }}</small></td>
-      <td>{{ c.antes_de_pr|yesno:"Sí,—" }}</td><td>{{ c.antes_de_federal|yesno:"Sí,—" }}</td><td>{{ c.antes_de_fica|yesno:"Sí,—" }}</td>
+      <td>{{ c.antes_de_pr|yesno:"Sí,—" }}</td><td>{{ c.antes_de_federal|yesno:"Sí,—" }}</td><td>{{ c.antes_de_fica|yesno:"Sí,—" }}</td><td>{{ c.codigo_w2|default:"—" }}</td>
       <td>{% include "parametros/_estado.html" with obj=c %}</td><td><a class="boton pequeno secundario" href="{% url 'parametros:deduccion_editar' c.pk %}">Editar</a></td></tr>{% endfor %}</tbody></table>
 </div>
 <p class="texto-suave">La retención por servicios prestados se configura en <a href="{% url 'servicios:config_lista' %}">Servicios → Tasa y exención</a>. Las tasas de SUTA, SINOT y CFSE de cada compañía, en la ficha de la compañía.</p>

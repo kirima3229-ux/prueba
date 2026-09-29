@@ -7,7 +7,7 @@ from decimal import Decimal
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
@@ -41,6 +41,7 @@ TIPOS = [
     Tipo("choferil", "Seguro Choferil", "DTRH", "trimestral", True),
     Tipo("w2pr", "499R-2/W-2PR · Comprobantes de retención", "Hacienda / SSA", "anual", True),
     Tipo("r3", "499R-3 · Reconciliación anual", "Hacienda", "anual"),
+    Tipo("w2", "W-2 / W-3 federal · Empleados con retención federal", "IRS / SSA", "anual", True),
     Tipo("940", "940 · Desempleo federal (FUTA)", "IRS", "anual"),
     Tipo("servicios", "480.6SP · Servicios prestados", "Hacienda", "anual", True),
     Tipo("cfse", "CFSE · Nómina por clasificación", "CFSE", "poliza"),
@@ -51,7 +52,7 @@ POR_CODIGO = {t.codigo: t for t in TIPOS}
 def vencimiento(tipo: Tipo, anio, trimestre):
     if tipo.periodicidad == "trimestral":
         return fechas.vence_trimestral(anio, trimestre)
-    if tipo.codigo in ("w2pr", "r3", "940"):
+    if tipo.codigo in ("w2pr", "r3", "940", "w2"):
         return fechas.proximo_laborable(date(anio + 1, 1, 31))
     if tipo.codigo == "servicios":
         return fechas.proximo_laborable(date(anio + 1, 2, 28))
@@ -229,7 +230,40 @@ def _t_servicios(compania, anio, trimestre, completo):
                   "prestados se genera cuando se incorpore el formato (pendiente)."])
 
 
-CONSTRUCTORES = {"w2pr": _t_w2pr, "r1b": _t_r1b, "r3": _t_r3, "941": _t_941, "940": _t_940, "dtrh": _t_dtrh,
+def _t_w2(compania, anio, trimestre, completo):
+    filas_datos = datos.w2_federal(compania, anio)
+    columnas = [("Núm.", "corto"), ("Empleado", "texto"), ("SSN", "corto"), ("1 Salarios", "dinero"),
+                ("2 Ret. federal", "dinero"), ("3 Salarios SS", "dinero"), ("4 SS retenido", "dinero"),
+                ("5 Salarios Medicare", "dinero"), ("6 Medicare retenido", "dinero"), ("7 Propinas SS", "dinero"),
+                ("12 Códigos", "texto"), ("13 Plan de retiro", "corto"), ("14 Otros", "texto"),
+                ("16 Salarios PR", "dinero"), ("17 Retención PR", "dinero")]
+    filas = [[d.empleado.numero_empleado, d.empleado.nombre_completo, _ssn(d.empleado, completo), d.c1_salarios,
+              d.c2_retencion_federal, d.c3_salarios_ss, d.c4_ss_retenido, d.c5_salarios_medicare,
+              d.c6_medicare_retenido, d.c7_propinas_ss,
+              ", ".join(f"{k} {v:,.2f}" for k, v in d.c12.items()), "Sí" if d.c13_plan_retiro else "",
+              ", ".join(f"{k} {v:,.2f}" for k, v in d.c14.items()), d.c16_salarios_estatales,
+              d.c17_retencion_estatal] for d in filas_datos]
+    totales = None
+    if filas:
+        suma = [sum((f[i] for f in filas), CERO) for i in range(3, 10)]
+        codigos = {}
+        for d in filas_datos:
+            for k, v in d.c12.items():
+                codigos[k] = codigos.get(k, CERO) + v
+        totales = ["", f"TOTALES W-3 ({len(filas)} formularios)", ""] + suma + [
+            ", ".join(f"{k} {v:,.2f}" for k, v in sorted(codigos.items())), "", "",
+            sum((f[13] for f in filas), CERO), sum((f[14] for f in filas), CERO)]
+    notas = ["Sólo empleados con W-4 federal o retención federal en el año. Los empleados residentes de Puerto Rico "
+             "reciben el W-2PR.",
+             "Radicación: la copia A y el W-3 se envían al SSA por Business Services Online (W-2 Online, hasta 50 "
+             "formularios, con estos mismos valores) antes del 31 de enero. «Copias para el empleado» genera las "
+             "copias B, C y 2.",
+             "Casilla 12: según el código W-2 de cada concepto de deducción (Configuración). DD (costo de la cobertura "
+             "de salud) debe incluir también la parte del patrono. Casillas y reglas POR VERIFICAR."]
+    return Tabla(columnas, filas, totales, notas)
+
+
+CONSTRUCTORES = {"w2": _t_w2, "w2pr": _t_w2pr, "r1b": _t_r1b, "r3": _t_r3, "941": _t_941, "940": _t_940, "dtrh": _t_dtrh,
                  "choferil": _t_choferil, "cfse": _t_cfse, "servicios": _t_servicios}
 
 
@@ -332,6 +366,20 @@ def planilla(request, codigo):
             messages.success(request, "Radicación registrada.")
             return redirect(f"{request.path}?anio={anio}" + (f"&trimestre={trimestre}" if trimestre else ""))
     formato = request.GET.get("formato")
+    if formato == "copias" and tipo.codigo == "w2":
+        if not request.user.puede_editar:
+            raise PermissionDenied("No tiene permiso para generar los W-2.")
+        from . import pdf_w2
+
+        filas_w2 = datos.w2_federal(compania, anio)
+        if not filas_w2:
+            messages.error(request, "No hay empleados con retención federal en el año.")
+            return redirect(f"{request.path}?anio={anio}")
+        registrar(request, Accion.ARCHIVO_GENERADO,
+                  descripcion=f"W-2 federal {anio}: copias para {len(filas_w2)} empleado(s)")
+        respuesta = HttpResponse(pdf_w2.generar(filas_w2, compania, anio), content_type="application/pdf")
+        respuesta["Content-Disposition"] = f'inline; filename="w2_{anio}_copias_empleado.pdf"'
+        return respuesta
     completo = formato == "agencia"
     if completo:
         if not tipo.con_identificacion:

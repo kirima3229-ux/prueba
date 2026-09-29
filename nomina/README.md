@@ -182,7 +182,7 @@ Método de porcentaje para sistemas automatizados de la **Publicación 15-T, Hoj
 - *Configuración → año* trae las tablas de 2025 y 2026 (**POR VERIFICAR**), generadas con los tramos y deducciones
   estándar del año; la de casados de 2026 coincide con la publicada por el IRS. Se pueden editar.
 - La retención federal va a la línea 3 del 941 y a su cuenta en el asiento de QuickBooks. Para estos empleados
-  corresponde además el W-2 federal (no se genera todavía).
+  corresponde además el W-2 federal (*Planillas → W-2 / W-3 federal*).
 
 ## Fase 2b — vacaciones, enfermedad y bono de Navidad
 
@@ -338,6 +338,7 @@ pago; los reversos restan), en pantalla, PDF y Excel:
 | Seguro Choferil | DTRH | Por empleado: semanas y aportaciones |
 | 499R-2/W-2PR | Hacienda / SSA | Por empleado: sueldos, comisiones, propinas, reembolsos, exentos, aportaciones, retenido, SS y Medicare |
 | 499R-3 | Hacienda | Reconciliación: suma de los trimestres contra los W-2PR (avisa si no cuadran) |
+| W-2 / W-3 federal | IRS / SSA | Sólo empleados con W-4 o retención federal: casillas 1–7, 12 (según el código W-2 de cada deducción), 13, 14 y 16–17 (PR); totales del W-3; **copias B, C y 2 para el empleado en PDF** (SSN truncado). La copia A se entra en *W-2 Online* del SSA con estos valores |
 | 940 | IRS | Líneas 3–8 y obligación por trimestre |
 | 480.6SP | Hacienda | Por proveedor de servicios: pagado y retenido en el año |
 | CFSE | CFSE | Nómina y prima por clasificación en el año de la póliza (julio–junio) |
